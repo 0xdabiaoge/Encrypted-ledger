@@ -1,0 +1,14 @@
+{
+  "pipeline_order": [
+    "01_macro_trend_filter.py",
+    "02_confidence_gatekeeper.py",
+    "03_adx_volatility_filter.py",
+    "04_risk_reward_gatekeeper.py"
+  ],
+  "enabled": {
+    "01_macro_trend_filter.py": true,
+    "02_confidence_gatekeeper.py": true,
+    "03_adx_volatility_filter.py": true,
+    "04_risk_reward_gatekeeper.py": true
+  }
+}

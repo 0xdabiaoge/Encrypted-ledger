@@ -259,9 +259,10 @@
               <div class="flex items-center space-x-1 bg-dark-850 border border-dark-border rounded-lg px-2.5 py-1 text-xs">
                 <span class="text-gray-400">数据源:</span>
                 <select id="select-market-venue" onchange="changeMarketVenue(this.value)" class="bg-transparent text-emerald-400 font-bold focus:outline-none cursor-pointer">
-                  <option value="okx" class="bg-dark-900 text-white">OKX 欧易 (默认)</option>
-                  <option value="binance" class="bg-dark-900 text-white">Binance 币安合约</option>
-                  <option value="agg" class="bg-dark-900 text-white">双所智能聚合 (Dual Hub)</option>
+                  <option value="okx" class="bg-dark-900 text-white">OKX 欧易官方源</option>
+                  <option value="binance" class="bg-dark-900 text-white">Binance 币安合约源</option>
+                  <option value="gate" class="bg-dark-900 text-white">Gate.io (Meme/山寨优先源)</option>
+                  <option value="agg" class="bg-dark-900 text-white">智能混合聚合 (主流走OKX/币安 · Meme走Gate)</option>
                 </select>
               </div>
 
@@ -925,6 +926,14 @@
           <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
           <span>账号安全与改密</span>
         </button>
+        <button id="tab-btn-sandbox" onclick="switchAdminTab('sandbox')" class="py-2 px-3.5 rounded-lg bg-dark-card/60 text-gray-400 hover:text-gray-200 border border-transparent hover:border-dark-border flex items-center space-x-1.5 transition whitespace-nowrap cursor-pointer shrink-0">
+          <i data-lucide="terminal" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Python风控沙箱</span>
+        </button>
+        <button id="tab-btn-backup" onclick="switchAdminTab('backup')" class="py-2 px-3.5 rounded-lg bg-dark-card/60 text-gray-400 hover:text-gray-200 border border-transparent hover:border-dark-border flex items-center space-x-1.5 transition whitespace-nowrap cursor-pointer shrink-0">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>系统加密灾备</span>
+        </button>
       </div>
 
       <!-- Modal Body (Scrollable) -->
@@ -985,6 +994,33 @@
               <div>
                 <label class="block text-gray-400 mb-1">Secret Key</label>
                 <input id="cfg-bin-secret-key" type="password" placeholder="••••••••••••" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Gate.io Section (Meme & Altcoin Priority) -->
+          <div class="border border-dark-border rounded-lg p-4 bg-dark-850/50 space-y-3">
+            <div class="flex items-center justify-between border-b border-dark-border/60 pb-2">
+              <span class="font-bold text-white text-sm flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span>Gate.io 芝麻开门 (Meme 币与小市值山寨币优先)</span>
+              </span>
+              <div class="flex items-center space-x-2">
+                <label class="text-gray-400">运行模式:</label>
+                <select id="cfg-gate-env" class="bg-dark-card border border-dark-border rounded px-2 py-1 text-white font-semibold">
+                  <option value="demo">模拟盘 (Demo / Testnet)</option>
+                  <option value="live">实盘交易 (Live)</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-gray-400 mb-1">Gate.io API Key</label>
+                <input id="cfg-gate-api-key" type="text" placeholder="保持原状或输入新 API Key" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono" />
+              </div>
+              <div>
+                <label class="block text-gray-400 mb-1">Gate.io Secret Key</label>
+                <input id="cfg-gate-secret-key" type="password" placeholder="••••••••••••" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono" />
               </div>
             </div>
           </div>
@@ -1361,6 +1397,217 @@
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+
+        <!-- Tab 7: Python Risk Interceptor Plugins & Sandbox Test -->
+        <div id="tab-panel-sandbox" class="hidden space-y-5">
+          <div class="p-4 bg-dark-850 border border-dark-border rounded-lg flex flex-wrap items-center justify-between gap-3 shadow-md">
+            <div>
+              <div class="font-bold text-white text-sm flex items-center space-x-2">
+                <i data-lucide="terminal" class="w-4 h-4 text-amber-400"></i>
+                <span>Python 物理风控拦截插件沙箱 (Fail-Closed Execution Sandbox)</span>
+              </div>
+              <div class="text-[11px] text-gray-400 mt-0.5">
+                支持在线热编写、热重载原生 Python 风控拦截逻辑。所有启用的插件将在交易执行前物理硬拦截，任何异常自动触发 Fail-Closed 熔断。
+              </div>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button onclick="togglePluginEditor(true)" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center space-x-1 transition">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>新建风控插件</span>
+              </button>
+              <button onclick="runPluginsSandboxTest()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center space-x-1.5 shadow-md transition">
+                <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                <span>⚡ 运行5大机构场景沙箱测试</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Sandbox Test Results Banner (Hidden by default) -->
+          <div id="sandbox-test-results-card" class="hidden border border-emerald-500/30 rounded-xl p-4 bg-dark-850/80 space-y-3 shadow-lg">
+            <div class="flex items-center justify-between border-b border-dark-border/60 pb-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-base">🛡️</span>
+                <span class="font-bold text-white text-xs">沙箱对抗压力测试回执 (Sandbox Stress Telemetry)</span>
+                <span id="sandbox-accuracy-badge" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">准确率: 100%</span>
+              </div>
+              <div class="text-xs text-gray-400 font-mono">
+                总耗时: <b id="sandbox-total-latency" class="text-emerald-400">0.0ms</b> | 平均每场景: <b id="sandbox-avg-latency" class="text-emerald-400">0.0ms</b>
+              </div>
+            </div>
+            <div class="overflow-x-auto border border-dark-border rounded-lg">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-dark-900 text-gray-400 text-[11px] border-b border-dark-border">
+                  <tr>
+                    <th class="py-2 px-3">测试场景</th>
+                    <th class="py-2 px-3">决策意图</th>
+                    <th class="py-2 px-3">物理拦截器裁决</th>
+                    <th class="py-2 px-3">拦截/放行原因</th>
+                    <th class="py-2 px-3 font-mono">单步耗时</th>
+                    <th class="py-2 px-3 text-right">对抗校验</th>
+                  </tr>
+                </thead>
+                <tbody id="sandbox-report-tbody" class="divide-y divide-dark-border font-mono text-xs">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Plugin Code Editor Drawer (Hidden by default) -->
+          <div id="plugin-editor-card" class="hidden border border-amber-500/40 rounded-xl p-4 bg-dark-900 space-y-3 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-dark-border/60 pb-2">
+              <div class="flex items-center space-x-2">
+                <span class="text-amber-400 font-bold">📝 Python 风控拦截插件源码编辑器</span>
+                <span class="text-[10px] text-gray-500 font-mono">函数签名: def check_risk(package, decision, context) -> tuple[bool, str]</span>
+              </div>
+              <button onclick="togglePluginEditor(false)" class="text-gray-400 hover:text-white text-xs">✕ 关闭</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-gray-300 text-xs mb-1">插件文件名 (必须为 .py 后缀)</label>
+                <input id="plugin-edit-filename" type="text" placeholder="例如: 05_volatility_circuit_breaker.py" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono text-xs" />
+              </div>
+              <div class="flex items-end justify-end space-x-2">
+                <button type="button" onclick="savePluginCodeSubmit()" class="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition flex items-center space-x-1">
+                  <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                  <span>AST 语法静态校验并保存生效</span>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-gray-300 text-xs mb-1 font-bold">Python 源码内容</label>
+              <textarea id="plugin-edit-code" rows="14" class="w-full bg-dark-card border border-dark-border rounded-lg p-3 text-emerald-300 font-mono text-xs leading-relaxed focus:border-amber-500 outline-none"></textarea>
+            </div>
+          </div>
+
+          <!-- Installed Plugins Table -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-white text-sm">已安装物理拦截插件流水线 (Fail-Closed Sequence)</span>
+              <span class="text-[11px] text-gray-400">自上而下逐级执行，任一插件拦截或异常均阻断开仓</span>
+            </div>
+            <div class="border border-dark-border rounded-lg overflow-x-auto">
+              <table class="w-full text-left">
+                <thead class="bg-dark-850 text-gray-400 border-b border-dark-border text-[11px]">
+                  <tr>
+                    <th class="py-2.5 px-3">序号</th>
+                    <th class="py-2.5 px-3">插件文件名</th>
+                    <th class="py-2.5 px-3">规则名称</th>
+                    <th class="py-2.5 px-3">规则简介</th>
+                    <th class="py-2.5 px-3">启用状态</th>
+                    <th class="py-2.5 px-3 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="plugins-tbody" class="divide-y divide-dark-border font-mono text-xs">
+                  <tr>
+                    <td colspan="6" class="py-3 text-center text-gray-500">正在检索风控插件...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 8: System-Level Authenticated Disaster Recovery (AES-256) -->
+        <div id="tab-panel-backup" class="hidden space-y-6">
+          <div class="p-4 bg-dark-850 border border-dark-border rounded-lg flex flex-wrap items-center justify-between gap-3 shadow-md">
+            <div>
+              <div class="font-bold text-white text-sm flex items-center space-x-2">
+                <i data-lucide="shield-check" class="w-4 h-4 text-cyan-400"></i>
+                <span>系统级 AES-256 加密灾备与秒级热还原引擎 (Disaster Recovery Engine)</span>
+              </div>
+              <div class="text-[11px] text-gray-400 mt-0.5">
+                基于 PBKDF2-HMAC-SHA256 密钥派生与 Fernet 认证加密算法，完整归档 SQLite 账本、多模型池配置、席位指令、风控插件与邀请码。
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- Card 1: Create Backup -->
+            <div class="border border-dark-border rounded-xl p-4 bg-dark-850/60 space-y-3.5 shadow-md flex flex-col justify-between">
+              <div>
+                <div class="border-b border-dark-border/60 pb-2 flex items-center justify-between">
+                  <span class="font-bold text-white text-xs flex items-center space-x-1.5">
+                    <span>🔒 一键生成加密灾备归档包</span>
+                  </span>
+                  <span class="text-[10px] text-cyan-400 font-mono">AES-256 + PBKDF2</span>
+                </div>
+                <div class="space-y-3 mt-3">
+                  <div>
+                    <label class="block text-gray-300 text-xs mb-1 font-medium">设置灾备加密主密码 (解密恢复唯一凭证)</label>
+                    <input id="backup-create-pwd" type="password" placeholder="请输入至少 6 位加密主密码" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono text-xs focus:border-cyan-500 outline-none" />
+                  </div>
+                  <div>
+                    <label class="block text-gray-300 text-xs mb-1 font-medium">灾备版本备注 (可选)</label>
+                    <input id="backup-create-note" type="text" placeholder="例如: 升级模型与席位前备份 / 季度全量备份" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white text-xs focus:border-cyan-500 outline-none" />
+                  </div>
+                </div>
+              </div>
+              <div class="pt-2">
+                <button type="button" onclick="createSystemBackupSubmit()" class="w-full py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold shadow-md transition flex items-center justify-center space-x-1.5">
+                  <i data-lucide="download" class="w-4 h-4"></i>
+                  <span>立即加密打包并下载 (.enc 灾备包)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Card 2: Restore from Backup -->
+            <div class="border border-dark-border rounded-xl p-4 bg-dark-850/60 space-y-3.5 shadow-md flex flex-col justify-between">
+              <div>
+                <div class="border-b border-dark-border/60 pb-2 flex items-center justify-between">
+                  <span class="font-bold text-amber-300 text-xs flex items-center space-x-1.5">
+                    <span>🔓 灾备包解密与系统热恢复</span>
+                  </span>
+                  <span class="text-[10px] text-red-400 font-mono font-bold">高危谨慎操作</span>
+                </div>
+                <div class="space-y-3 mt-3">
+                  <div>
+                    <label class="block text-gray-300 text-xs mb-1 font-medium">选择本地 .enc 灾备文件</label>
+                    <input id="backup-restore-file" type="file" accept=".enc" class="w-full bg-dark-card border border-dark-border rounded px-2.5 py-1 text-gray-300 text-xs focus:outline-none file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-dark-850 file:text-cyan-400 hover:file:bg-dark-border" />
+                  </div>
+                  <div>
+                    <label class="block text-gray-300 text-xs mb-1 font-medium">输入灾备解密主密码</label>
+                    <input id="backup-restore-pwd" type="password" placeholder="请输入该灾备包创建时设置的密码" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono text-xs focus:border-amber-500 outline-none" />
+                  </div>
+                  <div class="text-[11px] text-amber-400/90 bg-amber-500/10 border border-amber-500/20 rounded p-2 leading-relaxed">
+                    ⚠️ <b>警告</b>：灾备还原将覆盖现有数据库、模型池配置、席位提示词与邀请码，解密失败或密码错误将自动拒绝恢复。
+                  </div>
+                </div>
+              </div>
+              <div class="pt-2">
+                <button type="button" onclick="restoreSystemBackupSubmit()" class="w-full py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-md transition flex items-center justify-center space-x-1.5">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                  <span>确认密码并执行秒级热还原</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Existing Backups List -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-white text-sm">服务器本地灾备快照归档</span>
+              <span class="text-[11px] text-gray-400">保存在 backups/ 隔离数据目录中</span>
+            </div>
+            <div class="border border-dark-border rounded-lg overflow-x-auto">
+              <table class="w-full text-left">
+                <thead class="bg-dark-850 text-gray-400 border-b border-dark-border text-[11px]">
+                  <tr>
+                    <th class="py-2.5 px-3">灾备文件名</th>
+                    <th class="py-2.5 px-3">文件大小</th>
+                    <th class="py-2.5 px-3">创建时间</th>
+                    <th class="py-2.5 px-3 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="backups-tbody" class="divide-y divide-dark-border font-mono text-xs">
+                  <tr>
+                    <td colspan="4" class="py-3 text-center text-gray-500">正在检索灾备归档...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -2176,7 +2423,7 @@
     }
 
     function switchAdminTab(tab) {
-      const tabs = ['creds', 'council', 'risk', 'policy', 'invites', 'account'];
+      const tabs = ['creds', 'council', 'risk', 'policy', 'invites', 'account', 'sandbox', 'backup'];
       tabs.forEach(t => {
         const btn = document.getElementById(`tab-btn-${t}`);
         const panel = document.getElementById(`tab-panel-${t}`);
@@ -2200,6 +2447,8 @@
       if (tab === 'risk') loadRiskConstants();
       if (tab === 'policy') loadPolicyData();
       if (tab === 'invites') loadInviteCodes();
+      if (tab === 'sandbox') loadPluginsList();
+      if (tab === 'backup') loadBackupsList();
       lucide.createIcons();
     }
 
@@ -2385,11 +2634,13 @@
         const data = await res.json();
         document.getElementById('cfg-okx-env').value = data.okx_env || 'demo';
         document.getElementById('cfg-binance-env').value = data.binance_env || 'demo';
+        if (document.getElementById('cfg-gate-env')) document.getElementById('cfg-gate-env').value = data.gate_env || 'demo';
         document.getElementById('cfg-llm-base-url').value = data.llm_base_url || '';
         document.getElementById('cfg-llm-model').value = data.llm_model || '';
         document.getElementById('cfg-tg-admin-id').value = data.telegram_admin_chat_id || '';
         if (data.okx_api_key_masked) document.getElementById('cfg-okx-api-key').placeholder = `当前: ${data.okx_api_key_masked}`;
         if (data.binance_api_key_masked) document.getElementById('cfg-bin-api-key').placeholder = `当前: ${data.binance_api_key_masked}`;
+        if (data.gate_api_key_masked && document.getElementById('cfg-gate-api-key')) document.getElementById('cfg-gate-api-key').placeholder = `当前: ${data.gate_api_key_masked}`;
         if (data.llm_key_masked) document.getElementById('cfg-llm-api-key').placeholder = `当前: ${data.llm_key_masked}`;
         if (data.telegram_bot_token_masked) document.getElementById('cfg-tg-token').placeholder = `当前: ${data.telegram_bot_token_masked}`;
       } catch (e) {}
@@ -2401,6 +2652,9 @@
         binance_env: document.getElementById('cfg-binance-env').value,
         telegram_admin_chat_id: document.getElementById('cfg-tg-admin-id').value.trim()
       };
+      if (document.getElementById('cfg-gate-env')) {
+        payload.gate_env = document.getElementById('cfg-gate-env').value;
+      }
       const okxKey = document.getElementById('cfg-okx-api-key').value.trim();
       if (okxKey) payload.okx_api_key = okxKey;
       const okxSec = document.getElementById('cfg-okx-secret-key').value.trim();
@@ -2412,6 +2666,11 @@
       if (binKey) payload.binance_api_key = binKey;
       const binSec = document.getElementById('cfg-bin-secret-key').value.trim();
       if (binSec) payload.binance_secret_key = binSec;
+
+      const gateKey = document.getElementById('cfg-gate-api-key')?.value.trim();
+      if (gateKey) payload.gate_api_key = gateKey;
+      const gateSec = document.getElementById('cfg-gate-secret-key')?.value.trim();
+      if (gateSec) payload.gate_secret_key = gateSec;
 
       const llmBase = document.getElementById('cfg-llm-base-url').value.trim();
       if (llmBase) payload.llm_base_url = llmBase;
@@ -2585,6 +2844,23 @@
                 </label>
                 <span class="text-[10px] text-gray-500 font-mono">支持中英双语 / 兼容顶级推理大模型</span>
               </div>
+
+              <!-- Prompt Studio Dynamic Token Badges Toolbar -->
+              <div class="flex flex-wrap items-center gap-1.5 mb-2 p-2 bg-dark-900/80 rounded-lg border border-dark-border/70">
+                <span class="text-[10px] text-purple-300 font-bold mr-1 flex items-center space-x-1">
+                  <span>⚡ 变量插槽 (点击插入):</span>
+                </span>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{macro_4h}}')" class="px-2 py-0.5 rounded bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 text-[10px] font-mono transition" title="点击插入 4H 宏观大级别通道状态">+ {{macro_4h}} 4H宏观</button>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{calculus_1h}}')" class="px-2 py-0.5 rounded bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[10px] font-mono transition" title="点击插入 1H 速度与加速度微积分动量">+ {{calculus_1h}} 微积分动量</button>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{smart_money}}')" class="px-2 py-0.5 rounded bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono transition" title="点击插入 链上巨鲸多空持仓比与流入">+ {{smart_money}} 巨鲸流向</button>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{orderbook_imbalance}}')" class="px-2 py-0.5 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[10px] font-mono transition" title="点击插入 L2 订单簿买卖深度失衡度">+ {{orderbook_imbalance}} 盘口失衡</button>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{sentiment_index}}')" class="px-2 py-0.5 rounded bg-pink-500/15 hover:bg-pink-500/25 text-pink-300 border border-pink-500/30 text-[10px] font-mono transition" title="点击插入 全网恐慌与贪婪情绪指数">+ {{sentiment_index}} 情绪指数</button>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{hft_micro_scalp}}')" class="px-2 py-0.5 rounded bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-[10px] font-mono transition" title="点击插入 高频交易手续费损益安全门槛">+ {{hft_micro_scalp}} 高频费率门禁</button>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{risk_limit}}')" class="px-2 py-0.5 rounded bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 text-[10px] font-mono transition" title="点击插入 单笔最大保证金与杠杆硬封顶">+ {{risk_limit}} 动态风控配额</button>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{timestamp_beijing}}')" class="px-2 py-0.5 rounded bg-gray-500/15 hover:bg-gray-500/25 text-gray-300 border border-gray-500/30 text-[10px] font-mono transition" title="点击插入 标准北京时间时标">+ {{timestamp_beijing}} 北京时标</button>
+                <button type="button" onclick="insertPromptToken('prompt-${s.id}', '{{closed_trades_summary}}')" class="px-2 py-0.5 rounded bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 text-[10px] font-mono transition" title="点击插入 历史平仓交易统计摘要">+ {{closed_trades_summary}} 平仓战绩</button>
+              </div>
+
               <textarea id="prompt-${s.id}" rows="8" class="w-full bg-dark-card border border-dark-border rounded-lg p-3 text-white font-mono text-xs leading-relaxed focus:border-brand-500 outline-none">${s.prompt}</textarea>
             </div>
 
@@ -3396,6 +3672,339 @@
         }
       } catch (e) {
         console.warn('checkShareUrlParam error:', e);
+      }
+    }
+
+    // =========================================================================
+    // 17. Prompt Studio Dynamic Token Badges Helper
+    // =========================================================================
+    function insertPromptToken(textareaId, token) {
+      const ta = document.getElementById(textareaId);
+      if (!ta) return;
+      const start = ta.selectionStart || 0;
+      const end = ta.selectionEnd || 0;
+      const val = ta.value;
+      ta.value = val.substring(0, start) + token + val.substring(end);
+      ta.focus();
+      ta.setSelectionRange(start + token.length, start + token.length);
+    }
+
+    // =========================================================================
+    // 18. Python Risk Interceptor Plugins & Sandbox Logic
+    // =========================================================================
+    let g_risk_plugins = [];
+
+    async function loadPluginsList() {
+      try {
+        const res = await fetch(`${API_BASE}/risk/plugins`, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        g_risk_plugins = await res.json();
+        renderPluginsTable();
+      } catch (e) {
+        console.error('loadPluginsList error:', e);
+      }
+    }
+
+    function renderPluginsTable() {
+      const tbody = document.getElementById('plugins-tbody');
+      if (!tbody) return;
+      if (!g_risk_plugins || !g_risk_plugins.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-3 text-center text-gray-500">暂无已配置的风控拦截插件</td></tr>';
+        return;
+      }
+      tbody.innerHTML = g_risk_plugins.map((p, idx) => `
+        <tr class="hover:bg-dark-850/50 transition-colors">
+          <td class="py-2.5 px-3 font-mono text-gray-400 font-bold">${idx + 1}</td>
+          <td class="py-2.5 px-3 font-mono text-amber-300 font-bold">${p.filename}</td>
+          <td class="py-2.5 px-3 text-white font-semibold">${p.name || p.filename}</td>
+          <td class="py-2.5 px-3 text-gray-400 text-[11px] max-w-xs truncate">${p.description || '--'}</td>
+          <td class="py-2.5 px-3">
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" ${p.enabled ? 'checked' : ''} onchange="togglePluginActive('${p.filename}', this.checked)" class="sr-only peer" />
+              <div class="w-8 h-4 bg-dark-card peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-emerald-600"></div>
+              <span class="ml-2 text-[10px] font-mono ${p.enabled ? 'text-emerald-400 font-bold' : 'text-gray-500'}">${p.enabled ? '运行中' : '已停用'}</span>
+            </label>
+          </td>
+          <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1.5">
+            <button onclick="togglePluginEditor(true, '${p.filename}')" class="px-2 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-[11px] font-bold transition inline-flex items-center space-x-1 cursor-pointer">
+              <i data-lucide="edit-3" class="w-3 h-3"></i>
+              <span>查看源码</span>
+            </button>
+            <button onclick="deletePluginAction('${p.filename}')" class="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-[11px] font-bold transition inline-flex items-center space-x-1 cursor-pointer">
+              <i data-lucide="trash-2" class="w-3 h-3"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    async function togglePluginEditor(show, filename) {
+      const card = document.getElementById('plugin-editor-card');
+      if (!card) return;
+      if (!show) {
+        card.classList.add('hidden');
+        return;
+      }
+      card.classList.remove('hidden');
+      if (filename) {
+        document.getElementById('plugin-edit-filename').value = filename;
+        document.getElementById('plugin-edit-filename').readOnly = true;
+        try {
+          const res = await fetch(`${API_BASE}/risk/plugins/${filename}`, { headers: getAuthHeaders() });
+          if (res.ok) {
+            const data = await res.json();
+            document.getElementById('plugin-edit-code').value = data.code || '';
+          }
+        } catch (e) {
+          alert('读取插件代码失败: ' + e);
+        }
+      } else {
+        document.getElementById('plugin-edit-filename').value = '05_custom_interceptor.py';
+        document.getElementById('plugin-edit-filename').readOnly = false;
+        document.getElementById('plugin-edit-code').value = `"""
+[Plugin] 自定义机构级风控拦截器
+Version: 1.0.0
+Author: Quantitative Desk
+Description: 在此编写自定义物理拦截逻辑，任何异常均触发 Fail-Closed 熔断。
+"""
+def check_risk(package: dict, decision: dict, context: dict) -> tuple[bool, str]:
+    # 示例: 读取指标并拦截
+    adx = float(package.get("adx_1h", 20.0) or 20.0)
+    if adx < 15.0:
+        return False, "ADX < 15 处于垃圾震荡市，阻断入场"
+    return True, "自定义风控放行"
+`;
+      }
+      card.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function savePluginCodeSubmit() {
+      const filename = document.getElementById('plugin-edit-filename').value.trim();
+      const code = document.getElementById('plugin-edit-code').value;
+      if (!filename || !code) return alert('文件名与代码内容不能为空！');
+
+      try {
+        const res = await fetch(`${API_BASE}/risk/plugins`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ filename, code })
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('保存失败: ' + (data.detail || 'AST 语法校验未通过'));
+        alert(`✅ 插件 [${filename}] 已通过 AST 语法静态校验并热重载生效！`);
+        togglePluginEditor(false);
+        loadPluginsList();
+      } catch (e) {
+        alert('保存请求异常: ' + e);
+      }
+    }
+
+    async function togglePluginActive(filename, enabled) {
+      try {
+        const res = await fetch(`${API_BASE}/risk/plugins/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ filename, enabled })
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('切换失败: ' + (data.detail || '未知错误'));
+        loadPluginsList();
+      } catch (e) {
+        alert('网络请求异常: ' + e);
+      }
+    }
+
+    async function deletePluginAction(filename) {
+      if (!confirm(`确认要删除风控拦截插件 [${filename}] 吗？`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/risk/plugins/${filename}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          return alert('删除失败: ' + (data.detail || '未知错误'));
+        }
+        alert(`✅ 插件 [${filename}] 已安全移除！`);
+        loadPluginsList();
+      } catch (e) {
+        alert('删除异常: ' + e);
+      }
+    }
+
+    async function runPluginsSandboxTest() {
+      try {
+        const res = await fetch(`${API_BASE}/risk/plugins/sandbox-test`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('沙箱测试失败: ' + (data.detail || '未知错误'));
+
+        const rep = data.report;
+        const card = document.getElementById('sandbox-test-results-card');
+        if (card) card.classList.remove('hidden');
+
+        document.getElementById('sandbox-accuracy-badge').innerText = `对抗准确率: ${rep.verification_accuracy_pct}%`;
+        document.getElementById('sandbox-total-latency').innerText = `${rep.total_latency_ms}ms`;
+        document.getElementById('sandbox-avg-latency').innerText = `${rep.avg_latency_ms}ms`;
+
+        const tbody = document.getElementById('sandbox-report-tbody');
+        tbody.innerHTML = rep.results.map(r => `
+          <tr class="hover:bg-dark-900/60 transition-colors">
+            <td class="py-2 px-3 font-medium text-white">${r.scenario_name}</td>
+            <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] bg-dark-card border border-dark-border text-gray-300 font-mono">${r.outcome === 'PASSED' ? '顺势建仓' : '高风险指令'}</span></td>
+            <td class="py-2 px-3">
+              <span class="px-2 py-0.5 rounded font-bold text-[10px] ${r.passed ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}">
+                ${r.passed ? '🟢 PASS 放行' : `🔴 BLOCKED 拦截 (${r.blocked_by})`}
+              </span>
+            </td>
+            <td class="py-2 px-3 text-gray-300 text-[11px] max-w-sm truncate">${r.reason}</td>
+            <td class="py-2 px-3 font-mono text-cyan-400">${r.latency_ms}ms</td>
+            <td class="py-2 px-3 text-right">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${r.verification_passed ? 'text-emerald-400 bg-emerald-500/10' : 'text-red-400 bg-red-500/10'}">
+                ${r.verification_passed ? '✓ 预期一致' : '✕ 出现偏差'}
+              </span>
+            </td>
+          </tr>
+        `).join('');
+        lucide.createIcons();
+        card.scrollIntoView({ behavior: 'smooth' });
+      } catch (e) {
+        alert('沙箱测试请求失败: ' + e);
+      }
+    }
+
+    // =========================================================================
+    // 19. System-level Disaster Recovery (AES-256 PBKDF2)
+    // =========================================================================
+    let g_backup_archives = [];
+
+    async function loadBackupsList() {
+      try {
+        const res = await fetch(`${API_BASE}/system/backup/list`, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        g_backup_archives = await res.json();
+        renderBackupsTable();
+      } catch (e) {
+        console.error('loadBackupsList error:', e);
+      }
+    }
+
+    function renderBackupsTable() {
+      const tbody = document.getElementById('backups-tbody');
+      if (!tbody) return;
+      if (!g_backup_archives || !g_backup_archives.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-gray-500">暂无本地加密灾备归档</td></tr>';
+        return;
+      }
+      tbody.innerHTML = g_backup_archives.map(b => `
+        <tr class="hover:bg-dark-850/50 transition-colors">
+          <td class="py-2.5 px-3 font-mono text-cyan-300 font-bold flex items-center space-x-2">
+            <i data-lucide="file-archive" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>${b.filename}</span>
+          </td>
+          <td class="py-2.5 px-3 font-mono text-gray-300">${b.size_kb} KB</td>
+          <td class="py-2.5 px-3 font-mono text-gray-400">${b.created_at}</td>
+          <td class="py-2.5 px-3 text-right whitespace-nowrap space-x-1.5">
+            <button onclick="downloadBackupFile('${b.filename}')" class="px-2.5 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-[11px] font-bold transition inline-flex items-center space-x-1 cursor-pointer">
+              <i data-lucide="download" class="w-3 h-3"></i>
+              <span>下载归档</span>
+            </button>
+            <button onclick="deleteBackupAction('${b.filename}')" class="px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-[11px] font-bold transition inline-flex items-center space-x-1 cursor-pointer">
+              <i data-lucide="trash-2" class="w-3 h-3"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function downloadBackupFile(filename) {
+      window.open(`${API_BASE}/system/backup/download/${filename}`, '_blank');
+    }
+
+    async function createSystemBackupSubmit() {
+      const password = document.getElementById('backup-create-pwd').value;
+      const note = document.getElementById('backup-create-note').value.trim();
+      if (!password || password.length < 6) {
+        return alert('灾备加密主密码长度必须大于等于 6 位！');
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/system/backup/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ password, note })
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('创建灾备失败: ' + (data.detail || '未知错误'));
+        alert(`✅ 系统灾备加密包创建成功！\n文件名: ${data.backup.filename}\n大小: ${data.backup.size_kb} KB\n将立即为您触发安全下载。`);
+        downloadBackupFile(data.backup.filename);
+        document.getElementById('backup-create-pwd').value = '';
+        document.getElementById('backup-create-note').value = '';
+        loadBackupsList();
+      } catch (e) {
+        alert('灾备打包异常: ' + e);
+      }
+    }
+
+    async function restoreSystemBackupSubmit() {
+      const fileInput = document.getElementById('backup-restore-file');
+      const password = document.getElementById('backup-restore-pwd').value;
+      if (!fileInput.files || !fileInput.files[0]) {
+        return alert('请先选择本地 .enc 灾备文件！');
+      }
+      if (!password) {
+        return alert('请输入灾备解密主密码！');
+      }
+
+      if (!confirm('⚠️ 确定要执行全系统热还原吗？\n当前系统所有数据表、模型池配置与席位提示词将被覆盖！')) return;
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const raw = e.target.result;
+          const bytes = new Uint8Array(raw);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64 = btoa(binary);
+
+          const res = await fetch(`${API_BASE}/system/backup/restore`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ password, backup_b64: base64 })
+          });
+          const data = await res.json();
+          if (!res.ok) return alert('灾备还原失败: ' + (data.detail || '密码错误或数据包损坏'));
+          alert(`🎉 ${data.message}\n已恢复文件数: ${data.restored_files_count} 个。页面将自动刷新生效！`);
+          window.location.reload();
+        } catch (err) {
+          alert('还原请求失败: ' + err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    async function deleteBackupAction(filename) {
+      if (!confirm(`确认要删除灾备归档 [${filename}] 吗？`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/system/backup/${filename}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          return alert('删除失败: ' + (data.detail || '未知错误'));
+        }
+        alert(`✅ 灾备归档 [${filename}] 已删除！`);
+        loadBackupsList();
+      } catch (e) {
+        alert('删除异常: ' + e);
       }
     }
 

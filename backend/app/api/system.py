@@ -48,6 +48,9 @@ class UpdateCredentialsRequest(BaseModel):
     binance_env: Optional[str] = None
     binance_api_key: Optional[str] = None
     binance_secret_key: Optional[str] = None
+    gate_env: Optional[str] = None
+    gate_api_key: Optional[str] = None
+    gate_secret_key: Optional[str] = None
     llm_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
     llm_model: Optional[str] = None
@@ -88,6 +91,13 @@ async def update_credentials(req: UpdateCredentialsRequest):
             settings.BINANCE_DEMO_SECRET_KEY = req.binance_secret_key
         else:
             settings.BINANCE_LIVE_SECRET_KEY = req.binance_secret_key
+
+    if req.gate_env:
+        settings.GATE_ENV = req.gate_env.lower()
+    if req.gate_api_key is not None:
+        settings.GATE_API_KEY = req.gate_api_key.strip()
+    if req.gate_secret_key is not None:
+        settings.GATE_SECRET_KEY = req.gate_secret_key.strip()
 
     if req.llm_api_key is not None:
         settings.LLM_API_KEY = req.llm_api_key
@@ -315,3 +325,93 @@ async def update_instrument_in_universe(symbol: str, updates: Dict[str, Any]):
     if not success:
         raise HTTPException(status_code=404, detail=f"标的 {symbol.upper()} 未在交易池中找到")
     return {"status": "success", "message": f"标的 {symbol.upper()} 配置已更新"}
+
+
+# ------------------------------------------------------------------------------
+# System-level Authenticated Disaster Recovery (AES-256 PBKDF2)
+# ------------------------------------------------------------------------------
+
+class CreateBackupRequest(BaseModel):
+    password: str
+    note: Optional[str] = ""
+
+
+class RestoreBackupRequest(BaseModel):
+    password: str
+    backup_b64: Optional[str] = None
+    filename: Optional[str] = None
+
+
+@router.post("/backup/create", dependencies=[Depends(verify_admin_session)])
+async def trigger_create_backup(req: CreateBackupRequest):
+    """Generates an AES-256 encrypted disaster recovery backup archive."""
+    try:
+        from app.core.backup import create_encrypted_backup
+        res = create_encrypted_backup(req.password, req.note or "")
+        return {"status": "success", "message": "系统灾备包加密生成成功", "backup": res}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"创建系统灾备失败: {e}")
+
+
+@router.get("/backup/list", dependencies=[Depends(verify_admin_session)])
+async def list_system_backups():
+    """List all available system disaster recovery archives."""
+    from app.core.backup import list_backups
+    return list_backups()
+
+
+@router.get("/backup/download/{filename}", dependencies=[Depends(verify_admin_session)])
+async def download_system_backup(filename: str):
+    """Download an encrypted disaster recovery backup file (.enc)."""
+    import os
+    from fastapi.responses import FileResponse
+    from app.core.backup import BACKUP_DIR
+    safe_name = os.path.basename(filename)
+    target = BACKUP_DIR / safe_name
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="灾备文件不存在")
+    return FileResponse(path=str(target), filename=safe_name, media_type="application/octet-stream")
+
+
+@router.post("/backup/restore", dependencies=[Depends(verify_admin_session)])
+async def trigger_restore_backup(req: RestoreBackupRequest):
+    """Restores entire system state from encrypted backup using master password."""
+    import base64
+    import os
+    from app.core.backup import restore_encrypted_backup, BACKUP_DIR
+
+    raw_bytes = None
+    if req.backup_b64:
+        try:
+            raw_bytes = base64.b64decode(req.backup_b64)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Base64 数据格式损坏")
+    elif req.filename:
+        safe_name = os.path.basename(req.filename)
+        target = BACKUP_DIR / safe_name
+        if not target.exists():
+            raise HTTPException(status_code=404, detail="指定的灾备归档文件未找到")
+        raw_bytes = target.read_bytes()
+    else:
+        raise HTTPException(status_code=400, detail="必须提供 backup_b64 或 filename")
+
+    try:
+        res = restore_encrypted_backup(raw_bytes, req.password)
+        return res
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"灾备还原异常: {e}")
+
+
+@router.delete("/backup/{filename}", dependencies=[Depends(verify_admin_session)])
+async def remove_system_backup(filename: str):
+    """Delete a specific backup archive file."""
+    from app.core.backup import delete_backup_file
+    deleted = delete_backup_file(filename)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="灾备文件不存在")
+    return {"status": "success", "message": f"灾备文件 {filename} 已成功删除"}
+

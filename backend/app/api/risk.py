@@ -1,17 +1,28 @@
 """
 Encrypted Ledger - Risk Control Center API
-Exposes the 17-factor execution parameters, sandbox simulator, and circuit breaker status.
+Exposes the 17-factor execution parameters, sandbox simulator, circuit breaker status,
+and dynamic Python Risk Interceptor Plugins lifecycle & test engine.
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from app.api.auth import verify_admin_session
 from app.core.config import settings
 from app.risk.constants import dump_risk_constants_summary
 from app.risk.interceptors import interceptor_pipeline
 from app.intelligence.circuit_breaker import circuit_breaker
+from app.risk.interceptor_manager import (
+    list_plugins,
+    get_plugin_code,
+    save_plugin_code,
+    toggle_plugin,
+    delete_plugin,
+    run_sandbox_test,
+    load_config,
+    save_config,
+)
 
 router = APIRouter(prefix="/risk", tags=["Risk Management"])
 
@@ -41,6 +52,20 @@ class SandboxSimulationRequest(BaseModel):
     notional_usd: float
     leverage: float
     account_balance_usd: float
+
+
+class SavePluginRequest(BaseModel):
+    filename: str
+    code: str
+
+
+class TogglePluginRequest(BaseModel):
+    filename: str
+    enabled: bool
+
+
+class ReorderPluginsRequest(BaseModel):
+    order: List[str]
 
 
 @router.get("/constants", dependencies=[Depends(verify_admin_session)])
@@ -132,3 +157,85 @@ async def simulate_interceptor(req: SandboxSimulationRequest):
         "reason": res.reason,
         "details": res.details
     }
+
+
+# ==============================================================================
+# Python Risk Interceptor Plugins Lifecycle & Sandbox Endpoints
+# ==============================================================================
+
+@router.get("/plugins", dependencies=[Depends(verify_admin_session)])
+async def get_plugins():
+    """List all installed physical risk interceptor plugins."""
+    return list_plugins()
+
+
+@router.get("/plugins/{filename}", dependencies=[Depends(verify_admin_session)])
+async def get_plugin(filename: str):
+    """Retrieve raw Python code and metadata for a specific plugin."""
+    try:
+        return get_plugin_code(filename)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="插件文件不存在")
+
+
+@router.post("/plugins", dependencies=[Depends(verify_admin_session)])
+async def save_plugin(req: SavePluginRequest):
+    """Save or create a Python risk interceptor plugin with AST syntax validation."""
+    try:
+        updated = save_plugin_code(req.filename, req.code)
+        return {"status": "success", "message": f"插件 [{req.filename}] 保存并热生效成功", "plugin": updated}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"保存插件失败: {e}")
+
+
+@router.put("/plugins/{filename}", dependencies=[Depends(verify_admin_session)])
+async def update_plugin(filename: str, req: SavePluginRequest):
+    """Update existing Python risk plugin code."""
+    try:
+        updated = save_plugin_code(filename, req.code)
+        return {"status": "success", "message": f"插件 [{filename}] 热更新成功", "plugin": updated}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新插件失败: {e}")
+
+
+@router.delete("/plugins/{filename}", dependencies=[Depends(verify_admin_session)])
+async def remove_plugin(filename: str):
+    """Delete a custom risk interceptor plugin."""
+    try:
+        delete_plugin(filename)
+        return {"status": "success", "message": f"插件 [{filename}] 已安全移除"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"移除插件失败: {e}")
+
+
+@router.post("/plugins/toggle", dependencies=[Depends(verify_admin_session)])
+async def toggle_plugin_status(req: TogglePluginRequest):
+    """Toggle a plugin's active status."""
+    res = toggle_plugin(req.filename, req.enabled)
+    return {"status": "success", "message": f"插件 [{req.filename}] 状态已变更为 {'启用' if req.enabled else '停用'}", "result": res}
+
+
+@router.post("/plugins/reorder", dependencies=[Depends(verify_admin_session)])
+async def reorder_plugins(req: ReorderPluginsRequest):
+    """Update the execution sequence order of risk interceptor plugins."""
+    cfg = load_config()
+    cfg["pipeline_order"] = req.order
+    save_config(cfg)
+    return {"status": "success", "message": "插件流水线执行顺序已更新", "plugins": list_plugins()}
+
+
+@router.post("/plugins/sandbox-test", dependencies=[Depends(verify_admin_session)])
+async def run_plugins_sandbox_test():
+    """
+    Executes an instant sandbox stress test across 5 realistic institutional trade scenarios.
+    Measures per-plugin latency and verifies Fail-Closed blocking logic.
+    """
+    try:
+        report = run_sandbox_test()
+        return {"status": "success", "report": report}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"沙箱测试运行异常: {e}")

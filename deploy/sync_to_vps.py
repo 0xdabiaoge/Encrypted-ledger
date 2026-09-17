@@ -95,6 +95,15 @@ def deploy_code_to_vps():
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/market/klines?symbol=BTC&interval=5m&limit=5")
     print("Market K-Lines (5m) response:", stdout.read().decode("utf-8", errors="replace")[:140])
 
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/market/tickers?venue=smart_agg")
+    print("Smart Agg Tickers response:", stdout.read().decode("utf-8", errors="replace")[:120])
+
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/market/tickers?venue=gate")
+    print("Gate.io Tickers response:", stdout.read().decode("utf-8", errors="replace")[:120])
+
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/council/prompt-tokens")
+    print("Prompt Studio Tokens response:", stdout.read().decode("utf-8", errors="replace")[:140])
+
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/trading/share/EL-SH66335DD1")
     print("Position Share response:", stdout.read().decode("utf-8", errors="replace")[:140])
 

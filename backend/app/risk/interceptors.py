@@ -179,6 +179,44 @@ class PhysicalInterceptorPipeline:
                     details={"required_margin": required_margin, "max_margin": max_margin}
                 )
 
+            # ------------------------------------------------------------------
+            # Gate 6: Dynamic Python Interceptor Plugins Pipeline
+            # ------------------------------------------------------------------
+            try:
+                from app.risk.interceptor_manager import run_plugin_pipeline
+                macro_state = factor_snapshot.get("macro_4h")
+                if not macro_state:
+                    if candles_4h and len(candles_4h) >= 20:
+                        avg20 = sum(c["close"] for c in candles_4h[-20:]) / 20.0
+                        macro_state = "4H_BULL_CHANNEL" if candles_4h[-1]["close"] >= avg20 else "4H_BEAR_CHANNEL"
+                    else:
+                        macro_state = "4H_NEUTRAL_CHANNEL"
+
+                pkg = {
+                    "symbol": symbol,
+                    "instId": symbol,
+                    "macro_4h": macro_state,
+                    "adx_1h": float(factor_snapshot.get("pillar_1_trend", {}).get("adx", 20.0)),
+                    "factor_snapshot": factor_snapshot
+                }
+                dec = {
+                    "action": "BUY_LONG" if is_long else "SELL_SHORT",
+                    "confidence": confidence,
+                    "entry_price": entry_price,
+                    "take_profit_price": take_profit_price,
+                    "stop_loss_price": stop_loss_price
+                }
+                p_passed, p_blocker, p_reason = run_plugin_pipeline(pkg, dec, {})
+                if not p_passed:
+                    return InterceptResult(
+                        passed=False,
+                        blocked_by=f"PLUGIN_{p_blocker}",
+                        reason=f"动态 Python 风控插件拦截: {p_reason}",
+                        details={"plugin": p_blocker, "reason": p_reason}
+                    )
+            except Exception as p_err:
+                logger.warning(f"Plugin pipeline evaluation error: {p_err}")
+
             # All gates passed
             return InterceptResult(
                 passed=True,

@@ -65,3 +65,11 @@ async def get_trading_memory():
 async def trigger_evolution_review():
     """Trigger manual closed-trade review and self-evolution update."""
     return await self_evolution.run_review_cycle()
+
+
+@router.get("/prompt-tokens")
+async def list_prompt_tokens():
+    """Retrieve all available dynamic prompt token slots for prompt engineering."""
+    from app.intelligence.prompt_renderer import get_available_prompt_tokens
+    return get_available_prompt_tokens()
+

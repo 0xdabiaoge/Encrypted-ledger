@@ -70,5 +70,23 @@
     "created_at_iso": "2026-09-17T09:54:23.655693+00:00",
     "created_at_formatted": "2026-09-17 09:54:23 UTC",
     "is_masked": true
+  },
+  "EL-SHBBE3AF81": {
+    "share_id": "EL-SHBBE3AF81",
+    "creator_user": "trader_quant",
+    "trader_alias": "tra***nt",
+    "symbol": "BTC-USDT-SWAP",
+    "venue": "OKX",
+    "side": "LONG",
+    "leverage": "5.0x",
+    "entry_price": 64200.5,
+    "mark_price": 76550.0,
+    "unrealized_pnl_ratio": 0.2845,
+    "roi_pct": "+28.45%",
+    "status": "保本锁利中",
+    "council_insight": "顺应 4H 宏观大势通道，微积分加速度 (v>0, a>0) 爆发，CIO 全票核准。",
+    "created_at_iso": "2026-09-17T11:56:31.785666+00:00",
+    "created_at_formatted": "2026-09-17 11:56:31 UTC",
+    "is_masked": true
   }
 }

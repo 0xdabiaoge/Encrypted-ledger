@@ -59,7 +59,11 @@ class Settings(BaseSettings):
     BINANCE_DEMO_API_KEY: str = ""
     BINANCE_DEMO_SECRET_KEY: str = ""
 
-    PREFERRED_VENUE: str = "auto"  # auto | okx | binance
+    GATE_ENV: str = "demo"  # demo | live
+    GATE_API_KEY: str = ""
+    GATE_SECRET_KEY: str = ""
+
+    PREFERRED_VENUE: str = "auto"  # auto | okx | binance | gate
     ROUTING_MODE: str = "lowest_slippage"  # lowest_slippage | fee_optimized | balanced
 
     # 3. Execution Layer Risk Parameters

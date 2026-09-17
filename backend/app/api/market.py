@@ -1,6 +1,7 @@
 """
 Encrypted Ledger - Market Data & Quantitative Factor API
 Real-time quotes, orderbook depth, candles, calculus dynamics, and 5-pillar factor scores.
+Supports OKX, Binance, Gate.io (Meme/Altcoin priority), and Smart Hybrid Aggregation.
 """
 from __future__ import annotations
 
@@ -8,6 +9,7 @@ import asyncio
 from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, Query
 from app.exchanges.router import order_router
+from app.exchanges.categories import is_meme_or_altcoin, extract_base_asset
 from app.quant.universe import universe_manager
 from app.quant.factors import compute_factor_matrix
 
@@ -53,15 +55,30 @@ async def get_universe():
 
 
 @router.get("/tickers")
-async def get_all_tickers(venue: str = Query("okx", description="okx | binance | agg")):
-    """Fetch tickers for all universe instruments in parallel with high resilience and smart aggregation."""
+async def get_all_tickers(venue: str = Query("okx", description="okx | binance | gate | agg | smart_agg")):
+    """Fetch tickers for all universe instruments in parallel with high resilience and smart category routing."""
     instruments = universe_manager.load_instruments()
     symbols = [inst.get("name", "") if isinstance(inst, dict) else getattr(inst, "name", "") for inst in instruments]
     symbols = [s for s in symbols if s]
     v_clean = venue.lower().strip()
 
-    if v_clean == "agg":
-        async def _fetch_agg(sym: str):
+    if v_clean in ("agg", "smart_agg"):
+        async def _fetch_smart_agg(sym: str):
+            is_meme = is_meme_or_altcoin(sym)
+            if is_meme:
+                # Prioritize Gate.io for Meme and Altcoins
+                try:
+                    t_gate = await order_router.gate.get_ticker(sym)
+                    d = t_gate.__dict__.copy()
+                    d["venue"] = "gate"
+                    d["category"] = "MEME_ALTCOIN"
+                    d["last"] = t_gate.last_price
+                    d["price"] = t_gate.last_price
+                    return sym, d
+                except Exception:
+                    pass
+
+            # Mainstream or Gate fallback: OKX and Binance
             t_okx = None
             t_bin = None
             try:
@@ -72,11 +89,12 @@ async def get_all_tickers(venue: str = Query("okx", description="okx | binance |
                 t_bin = await order_router.binance.get_ticker(sym)
             except Exception:
                 pass
-            
+
             if t_okx and t_bin:
                 avg_price = (t_okx.last_price + t_bin.last_price) / 2.0
                 d = {
                     "venue": "agg",
+                    "category": "MAINSTREAM",
                     "symbol": sym,
                     "inst_id": f"{sym}-AGG",
                     "last_price": avg_price,
@@ -104,11 +122,12 @@ async def get_all_tickers(venue: str = Query("okx", description="okx | binance |
                 return sym, d
             return sym, None
 
-        results = await asyncio.gather(*[_fetch_agg(s) for s in symbols])
+        results = await asyncio.gather(*[_fetch_smart_agg(s) for s in symbols])
         return {sym: d for sym, d in results if d is not None}
 
+    # Direct venue requests (okx, binance, gate)
     adapter = order_router.get_adapter(v_clean)
-    alt_venue = "binance" if v_clean == "okx" else "okx"
+    alt_venue = "binance" if v_clean == "okx" else ("okx" if v_clean == "binance" else "okx")
     alt_adapter = order_router.get_adapter(alt_venue)
 
     async def _fetch_one(sym: str):
@@ -133,8 +152,16 @@ async def get_all_tickers(venue: str = Query("okx", description="okx | binance |
 
 
 @router.get("/ticker/{symbol}")
-async def get_ticker(symbol: str, venue: str = Query("okx", description="okx | binance")):
-    adapter = order_router.get_adapter(venue)
+async def get_ticker(symbol: str, venue: str = Query("okx", description="okx | binance | gate | agg")):
+    v_clean = venue.lower().strip()
+    if v_clean in ("agg", "smart_agg"):
+        if is_meme_or_altcoin(symbol):
+            adapter = order_router.gate
+        else:
+            adapter = order_router.okx
+    else:
+        adapter = order_router.get_adapter(v_clean)
+
     try:
         data = await adapter.get_ticker(symbol)
         d = data.__dict__.copy()
@@ -144,7 +171,7 @@ async def get_ticker(symbol: str, venue: str = Query("okx", description="okx | b
     except Exception as e:
         # Fallback to alternate venue
         try:
-            alt_venue = "binance" if venue.lower() == "okx" else "okx"
+            alt_venue = "binance" if v_clean == "okx" else "okx"
             alt_adapter = order_router.get_adapter(alt_venue)
             data = await alt_adapter.get_ticker(symbol)
             d = data.__dict__.copy()
@@ -157,16 +184,27 @@ async def get_ticker(symbol: str, venue: str = Query("okx", description="okx | b
 
 @router.get("/klines")
 async def get_klines(
-    symbol: str = Query("BTC", description="Symbol name (e.g. BTC, ETH, SOL)"),
+    symbol: str = Query("BTC", description="Symbol name (e.g. BTC, ETH, SOL, PEPE)"),
     interval: str = Query("5m", description="5m | 15m | 1h | 4h | 1d | 15d"),
-    venue: str = Query("okx", description="okx | binance | agg"),
+    venue: str = Query("okx", description="okx | binance | gate | agg | smart_agg"),
     limit: int = Query(150, ge=20, le=500)
 ):
     """
     Exchange-grade candlestick data endpoint supporting 5m to 15d intervals,
     volume histograms, and pre-computed technical indicators (MA7, MA25, MA99, BOLL).
+    Supports smart category routing (Gate for Meme/Altcoin, OKX/Binance for Mainstream).
     """
-    target_venue = "okx" if venue.lower() not in ("okx", "binance") else venue.lower()
+    v_clean = venue.lower().strip()
+    if v_clean in ("agg", "smart_agg"):
+        if is_meme_or_altcoin(symbol):
+            target_venue = "gate"
+        else:
+            target_venue = "okx"
+    elif v_clean in ("okx", "binance", "gate"):
+        target_venue = v_clean
+    else:
+        target_venue = "okx"
+
     adapter = order_router.get_adapter(target_venue)
     alt_venue = "binance" if target_venue == "okx" else "okx"
     alt_adapter = order_router.get_adapter(alt_venue)
@@ -238,12 +276,13 @@ async def get_klines(
 
 @router.get("/candles/{symbol}")
 async def get_candles(symbol: str, timeframe: str = "15m", limit: int = 100, venue: str = "okx"):
-    adapter = order_router.get_adapter(venue)
+    v_clean = venue.lower().strip()
+    adapter = order_router.gate if v_clean == "gate" or (v_clean in ("agg", "smart_agg") and is_meme_or_altcoin(symbol)) else order_router.get_adapter(v_clean if v_clean in ("okx", "binance") else "okx")
     try:
         return await adapter.get_candles(symbol, timeframe=timeframe, limit=limit)
     except Exception as e:
         try:
-            alt_venue = "binance" if venue.lower() == "okx" else "okx"
+            alt_venue = "binance" if v_clean == "okx" else "okx"
             alt_adapter = order_router.get_adapter(alt_venue)
             return await alt_adapter.get_candles(symbol, timeframe=timeframe, limit=limit)
         except Exception:
@@ -252,13 +291,14 @@ async def get_candles(symbol: str, timeframe: str = "15m", limit: int = 100, ven
 
 @router.get("/orderbook/{symbol}")
 async def get_orderbook(symbol: str, depth: int = 20, venue: str = "okx"):
-    adapter = order_router.get_adapter(venue)
+    v_clean = venue.lower().strip()
+    adapter = order_router.gate if v_clean == "gate" or (v_clean in ("agg", "smart_agg") and is_meme_or_altcoin(symbol)) else order_router.get_adapter(v_clean if v_clean in ("okx", "binance") else "okx")
     try:
         data = await adapter.get_orderbook(symbol, depth=depth)
         return data.__dict__
     except Exception as e:
         try:
-            alt_venue = "binance" if venue.lower() == "okx" else "okx"
+            alt_venue = "binance" if v_clean == "okx" else "okx"
             alt_adapter = order_router.get_adapter(alt_venue)
             data = await alt_adapter.get_orderbook(symbol, depth=depth)
             return data.__dict__
@@ -268,46 +308,44 @@ async def get_orderbook(symbol: str, depth: int = 20, venue: str = "okx"):
 
 @router.get("/factors/{symbol}")
 async def get_factors(symbol: str):
-    """Computes real-time 5-pillar factor matrix and composite alpha score with dual-venue redundancy."""
-    okx = order_router.okx
-    binance = order_router.binance
+    """Computes real-time 5-pillar factor matrix with Gate/OKX/Binance redundancy."""
+    is_meme = is_meme_or_altcoin(symbol)
+    primary = order_router.gate if is_meme else order_router.okx
+    fallback = order_router.okx if is_meme else order_router.binance
 
     candles = None
     book = None
     rubik = {"long_short_ratio": 1.0}
     funding = {"funding_rate": 0.0001}
 
-    # 1. Fetch candles from OKX with Binance fallback
     try:
-        candles = await okx.get_candles(symbol, timeframe="15m", limit=60)
+        candles = await primary.get_candles(symbol, timeframe="15m", limit=60)
     except Exception:
         try:
-            candles = await binance.get_candles(symbol, timeframe="15m", limit=60)
+            candles = await fallback.get_candles(symbol, timeframe="15m", limit=60)
         except Exception:
             pass
 
-    # 2. Fetch orderbook from OKX with Binance fallback
     try:
-        book = await okx.get_orderbook(symbol, depth=20)
+        book = await primary.get_orderbook(symbol, depth=20)
     except Exception:
         try:
-            book = await binance.get_orderbook(symbol, depth=20)
+            book = await fallback.get_orderbook(symbol, depth=20)
         except Exception:
             pass
 
-    # 3. Sentiment & Funding (OKX primary, non-blocking)
     try:
-        rubik = await okx.get_rubik_sentiment(symbol)
+        rubik = await order_router.okx.get_rubik_sentiment(symbol)
     except Exception:
         pass
 
     try:
-        funding = await okx.get_funding_rate(symbol)
+        funding = await order_router.okx.get_funding_rate(symbol)
     except Exception:
         pass
 
     if not candles:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch market candles for {symbol} on both OKX and Binance")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch market candles for {symbol}")
 
     imbalance = book.imbalance_ratio if book else 0.0
     matrix = compute_factor_matrix(
