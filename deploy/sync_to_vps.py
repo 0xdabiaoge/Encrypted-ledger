@@ -60,7 +60,7 @@ def deploy_code_to_vps():
 
     # 3. Extract and set permissions
     print("Extracting on VPS...")
-    stdin, stdout, stderr = client.exec_command(f"cd {REMOTE_DIR} && tar -xzf deploy.tar.gz && rm -f deploy.tar.gz && chmod +x deploy.sh deploy/*.sh")
+    stdin, stdout, stderr = client.exec_command(f"cd {REMOTE_DIR} && tar -xzf deploy.tar.gz && rm -f deploy.tar.gz && chmod +x deploy.sh update.sh deploy/*.sh")
     stdout.channel.recv_exit_status()
 
     # 4. Rebuild & Restart Docker container
@@ -72,7 +72,7 @@ def deploy_code_to_vps():
 
     # 5. Check Git and push to GitHub
     print("Committing and pushing to GitHub...")
-    commit_msg = sys.argv[1] if len(sys.argv) > 1 else "feat: institutional multi-agent council strategy presets, bilingual English-Chinese prompt engineering, and one-click template hub"
+    commit_msg = sys.argv[1] if len(sys.argv) > 1 else "feat: GitHub Actions CI/CD workflows, manual Docker build, update.sh and Nginx domain reverse proxy"
     cmd_git = f"""cd {REMOTE_DIR} && git add . && git commit -m "{commit_msg}" || true && git push origin main"""
     stdin, stdout, stderr = client.exec_command(cmd_git)
     print(stdout.read().decode("utf-8", errors="replace"))
@@ -84,7 +84,10 @@ def deploy_code_to_vps():
     time.sleep(5)
     print("Verifying live deployment on VPS...")
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/health")
-    print("Health response:", stdout.read().decode("utf-8", errors="replace"))
+    print("Local Health response:", stdout.read().decode("utf-8", errors="replace"))
+
+    stdin, stdout, stderr = client.exec_command("curl -s http://www.zhujiaofan.eu.cc/api/v1/system/health")
+    print("Domain (www.zhujiaofan.eu.cc) Health response:", stdout.read().decode("utf-8", errors="replace"))
 
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/market/tickers")
     print("Market Tickers response:", stdout.read().decode("utf-8", errors="replace")[:120])

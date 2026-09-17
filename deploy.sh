@@ -204,27 +204,77 @@ done
 echo ""
 
 # ------------------------------------------------------------------------------
-# 8. 输出部署结果与运维管理指南
+# 8. 配置 Nginx 域名反向代理 (www.zhujiaofan.eu.cc -> 127.0.0.1:8080)
+# ------------------------------------------------------------------------------
+echo -e "\n${BLUE}🌐 [阶段 7/7] 配置宿主机 Nginx 域名反向代理...${NC}"
+if ! command -v nginx &> /dev/null; then
+    echo -e "   • 正在安装 Nginx 反代服务..."
+    $SUDO apt-get update -qq && $SUDO apt-get install -y -qq nginx
+fi
+
+# 确保 Nginx 服务运行
+if ! $SUDO systemctl is-active --quiet nginx; then
+    $SUDO systemctl enable --now nginx || true
+fi
+
+# 写入或更新反代配置
+NGINX_CONF="/etc/nginx/sites-available/zhujiaofan.conf"
+if [ -f "$ROOT_DIR/deploy/nginx_zhujiaofan.conf" ]; then
+    $SUDO cp "$ROOT_DIR/deploy/nginx_zhujiaofan.conf" "$NGINX_CONF"
+else
+    cat << 'EOF' | $SUDO tee "$NGINX_CONF" > /dev/null
+server {
+    listen 80;
+    listen [::]:80;
+    server_name www.zhujiaofan.eu.cc zhujiaofan.eu.cc;
+    client_max_body_size 50M;
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+    }
+}
+EOF
+fi
+
+$SUDO ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/zhujiaofan.conf
+if $SUDO nginx -t &> /dev/null; then
+    $SUDO systemctl reload nginx
+    echo -e "   • Nginx 反代已成功加载: ${GREEN}http://www.zhujiaofan.eu.cc/${NC}"
+else
+    echo -e "${YELLOW}⚠️  Nginx 语法检测异常，请手动检查 $NGINX_CONF${NC}"
+fi
+
+# ------------------------------------------------------------------------------
+# 9. 输出部署结果与运维管理指南
 # ------------------------------------------------------------------------------
 SERVER_IP=$(curl -s -4 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}' || echo "你的VPS公网IP")
 
 if [ "$HEALTHY" = true ]; then
     echo -e "${GREEN}${BOLD}"
     echo "========================================================================"
-    echo "🎉 恭喜！ENCRYPTED LEDGER 已成功通过 DOCKER COMPOSE 部署上线！"
+    echo "🎉 恭喜！ENCRYPTED LEDGER 已成功通过 DOCKER COMPOSE 与 NG 反代部署上线！"
     echo "========================================================================"
     echo -e "${NC}"
-    echo -e "🖥️  ${BOLD}量化操盘工作台地址${NC} : ${CYAN}http://${SERVER_IP}:8080/${NC} (本地: http://127.0.0.1:8080/)"
-    echo -e "📑  ${BOLD}交互式 API 接口文档${NC} : ${CYAN}http://${SERVER_IP}:8080/docs${NC}"
+    echo -e "🌐  ${BOLD}官方域名反代访问${NC} : ${CYAN}http://www.zhujiaofan.eu.cc/${NC}"
+    echo -e "🖥️   ${BOLD}原生容器公网访问${NC} : ${CYAN}http://${SERVER_IP}:8080/${NC} (本地: http://127.0.0.1:8080/)"
+    echo -e "📑  ${BOLD}交互式 API 接口文档${NC} : ${CYAN}http://www.zhujiaofan.eu.cc/docs${NC}"
     echo -e "🔑  ${BOLD}默认管理员账号${NC}     : ${GREEN}admin${NC}"
     echo -e "🛡️  ${BOLD}默认管理员初始密码${NC} : ${GREEN}Admin123!@#${NC} (首次进入请在控制面板修改)"
-    echo -e "⚡  ${BOLD}初始运行模式${NC}       : ${YELLOW}OKX Demo + Binance Demo 沙盒安全模式${NC}"
     echo ""
     echo -e "${BOLD}常用日常运维命令：${NC}"
+    echo -e "  • 机器内一键更新镜像     : ${CYAN}./update.sh${NC}"
     echo -e "  • 查看实时交易与因果日志 : ${CYAN}$COMPOSE_CMD logs -f${NC}"
     echo -e "  • 重启交易中枢容器       : ${CYAN}$COMPOSE_CMD restart${NC}"
-    echo -e "  • 暂停停止交易服务       : ${CYAN}$COMPOSE_CMD down${NC}"
-    echo -e "  • 更新源码后一键重建     : ${CYAN}$COMPOSE_CMD up -d --build${NC}"
+    echo -e "  • 重新加载 Nginx 反代    : ${CYAN}$SUDO systemctl reload nginx${NC}"
     echo "========================================================================"
 else
     echo -e "${YELLOW}⚠️  服务已启动，但健康检查仍在同步中。${NC}"

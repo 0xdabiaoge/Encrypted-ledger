@@ -3,6 +3,7 @@
 # ==============================================================================
 services:
   encrypted-ledger:
+    image: ghcr.io/0xdabiaoge/encrypted-ledger:latest
     build:
       context: .
       dockerfile: Dockerfile

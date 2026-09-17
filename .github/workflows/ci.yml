@@ -1,0 +1,51 @@
+name: Continuous Integration (CI)
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    name: Run Automated Quality & Security Gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Gate 1 - Symbol Category & SOR Routing Test
+        run: python tests/test_gate_and_category_routing.py
+
+      - name: Gate 2 - Python Risk Sandbox & Plugins Test
+        run: python tests/test_interceptor_sandbox_plugin.py
+
+      - name: Gate 3 - Prompt Studio Dynamic Token Badges Test
+        run: python tests/test_prompt_tokens_renderer.py
+
+      - name: Gate 4 - Authenticated AES-256 Disaster Recovery Test
+        run: python tests/test_disaster_recovery_backup.py
+
+      - name: Gate 5 - Universe Symbol & Venue Selection Test
+        run: python tests/test_universe_venue_selection.py
+
+      - name: Gate 6 - Full Comprehensive End-to-End Test
+        run: python tests/test_comprehensive_suite.py
+
+      - name: Gate 7 - Commercial Masking & Multi-Agent Council Test
+        run: python tests/test_commercial_e2e.py
+
+      - name: Gate 8 - System Lifespan & Core Integration Test
+        run: python tests/test_e2e.py
