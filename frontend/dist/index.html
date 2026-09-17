@@ -856,8 +856,18 @@
       </div>
       <div class="space-y-3 text-xs">
         <div>
-          <label class="block text-gray-400 mb-1">标的代码 (如 NEAR, AVAX, TON)</label>
-          <input id="input-inst-name" type="text" placeholder="例如: TON" class="w-full bg-dark-850 border border-dark-border rounded px-3 py-2 text-white font-mono uppercase" />
+          <label class="block text-gray-400 mb-1">标的代码 (无限制：支持任意主流币、Meme币、小市值山寨币)</label>
+          <input id="input-inst-name" type="text" placeholder="例如: PEPE, DOGE, SOL, WIF, NEIRO..." class="w-full bg-dark-850 border border-dark-border rounded px-3 py-2 text-white font-mono uppercase" />
+        </div>
+        <div>
+          <label class="block text-gray-400 mb-1">指定交易所来源 / 撮合渠道</label>
+          <select id="input-inst-venue" class="w-full bg-dark-850 border border-dark-border rounded px-3 py-2 text-white">
+            <option value="auto">智能聚合路由 (主流走OKX/币安 · 默认Meme走Gate)</option>
+            <option value="okx">指定 OKX 交易所 (永续合约/现货)</option>
+            <option value="binance">指定 币安 Binance (U本位合约/现货)</option>
+            <option value="gate">指定 Gate.io (Meme币/高弹性山寨首选)</option>
+          </select>
+          <p class="text-[10px] text-gray-500 mt-1">💡 提示：OKX 和 币安已上线部分 Meme 币及山寨币合约（如 DOGE, PEPE），在此指定即可强制走对应交易所。</p>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -1950,13 +1960,25 @@
           tbody.innerHTML = '';
           for (const item of universe) {
             const sym = item.name;
+            const venueType = (item.venue || 'auto').toLowerCase();
+            let venueBadge = '';
+            if (venueType === 'okx') {
+              venueBadge = '<span class="text-[9px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30 font-mono font-bold" title="指定 OKX 撮合">OKX</span>';
+            } else if (venueType === 'binance') {
+              venueBadge = '<span class="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 font-mono font-bold" title="指定 币安 撮合">币安</span>';
+            } else if (venueType === 'gate') {
+              venueBadge = '<span class="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-mono font-bold" title="指定 Gate.io 撮合">Gate</span>';
+            } else {
+              venueBadge = '<span class="text-[9px] px-1 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30 font-mono font-bold" title="智能路由 (主流OKX/币安 · Meme走Gate)">智能路由</span>';
+            }
             const tr = document.createElement('tr');
             tr.id = `row-${sym}`;
             tr.className = 'hover:bg-dark-850/50 transition-colors';
             tr.innerHTML = `
-              <td class="py-2.5 px-3 font-bold text-white flex items-center space-x-2 cursor-pointer" onclick="showKlineForSymbol('${sym}')" title="点击查看专业K线">
+              <td class="py-2.5 px-3 font-bold text-white flex items-center space-x-1.5 cursor-pointer" onclick="showKlineForSymbol('${sym}')" title="点击查看专业K线">
                 <span class="hover:text-emerald-400 transition">${sym}</span>
                 <span class="text-[10px] px-1.5 py-0.5 rounded bg-dark-850 text-gray-400 border border-dark-border/50">${item.tier === 'tier_1_bluechip' ? '蓝筹' : '动量'}</span>
+                ${venueBadge}
               </td>
               <td class="py-2.5 px-3 font-mono text-emerald-400 font-semibold cursor-pointer" id="px-${sym}" onclick="showKlineForSymbol('${sym}')">$0.00</td>
               <td class="py-2.5 px-3 font-mono" id="calc-${sym}">--</td>
@@ -2373,6 +2395,7 @@
     async function submitAddInstrument() {
       const name = document.getElementById('input-inst-name').value.trim().toUpperCase();
       const tier = document.getElementById('input-inst-tier').value;
+      const venue = document.getElementById('input-inst-venue')?.value || 'auto';
       const max_leverage = parseFloat(document.getElementById('input-inst-leverage').value) || 3;
       if (!name) return alert('请输入标的代码！');
 
@@ -2380,13 +2403,14 @@
         const res = await fetch(`${API_BASE}/system/universe/add`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify({ name, tier, max_leverage })
+          body: JSON.stringify({ name, tier, venue, max_leverage })
         });
         if (!res.ok) {
           const err = await res.json();
           return alert('添加失败: ' + (err.detail || '未知错误'));
         }
-        alert(`标的 ${name} 已纳入量化交易池！`);
+        const venueLabel = venue === 'okx' ? 'OKX' : (venue === 'binance' ? '币安' : (venue === 'gate' ? 'Gate.io' : '智能聚合路由'));
+        alert(`标的 ${name} 已成功纳入量化交易池 (指定撮合渠道: ${venueLabel})！`);
         closeAddInstrumentModal();
         fetchUniverseAndFactors();
       } catch (e) {

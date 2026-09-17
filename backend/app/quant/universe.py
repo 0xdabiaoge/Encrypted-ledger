@@ -34,16 +34,16 @@ TIER_PROFILES = {
 
 
 DEFAULT_UNIVERSE = [
-    {"name": "BTC", "ccy": "BTC", "tier": "tier_1_bluechip", "okx_inst_id": "BTC-USDT-SWAP", "binance_inst_id": "BTCUSDT", "max_leverage": 5, "sl_atr_mult": 1.8, "precision": 1, "ct_val_okx": 0.01, "tick_sz": "0.1", "min_sz_okx": "0.01", "min_sz_binance": "0.001", "risk_per_trade_usd": 15.0},
-    {"name": "ETH", "ccy": "ETH", "tier": "tier_1_bluechip", "okx_inst_id": "ETH-USDT-SWAP", "binance_inst_id": "ETHUSDT", "max_leverage": 5, "sl_atr_mult": 1.8, "precision": 2, "ct_val_okx": 0.1, "tick_sz": "0.01", "min_sz_okx": "0.01", "min_sz_binance": "0.01", "risk_per_trade_usd": 15.0},
-    {"name": "SOL", "ccy": "SOL", "tier": "tier_2_momentum", "okx_inst_id": "SOL-USDT-SWAP", "binance_inst_id": "SOLUSDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 2, "ct_val_okx": 1.0, "tick_sz": "0.01", "min_sz_okx": "0.01", "min_sz_binance": "0.1", "risk_per_trade_usd": 15.0},
-    {"name": "XRP", "ccy": "XRP", "tier": "tier_2_momentum", "okx_inst_id": "XRP-USDT-SWAP", "binance_inst_id": "XRPUSDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 100.0, "tick_sz": "0.0001", "min_sz_okx": "0.01", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
-    {"name": "DOGE", "ccy": "DOGE", "tier": "tier_2_momentum", "okx_inst_id": "DOGE-USDT-SWAP", "binance_inst_id": "DOGEUSDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 1000.0, "tick_sz": "0.0001", "min_sz_okx": "0.01", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
-    {"name": "ARB", "ccy": "ARB", "tier": "tier_2_momentum", "okx_inst_id": "ARB-USDT-SWAP", "binance_inst_id": "ARBUSDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 10.0, "tick_sz": "0.0001", "min_sz_okx": "0.1", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
-    {"name": "SUI", "ccy": "SUI", "tier": "tier_2_momentum", "okx_inst_id": "SUI-USDT-SWAP", "binance_inst_id": "SUIUSDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 1.0, "tick_sz": "0.0001", "min_sz_okx": "0.01", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
-    {"name": "LINK", "ccy": "LINK", "tier": "tier_2_momentum", "okx_inst_id": "LINK-USDT-SWAP", "binance_inst_id": "LINKUSDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 3, "ct_val_okx": 1.0, "tick_sz": "0.001", "min_sz_okx": "0.1", "min_sz_binance": "0.1", "risk_per_trade_usd": 15.0},
-    {"name": "ADA", "ccy": "ADA", "tier": "tier_2_momentum", "okx_inst_id": "ADA-USDT-SWAP", "binance_inst_id": "ADAUSDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 100.0, "tick_sz": "0.0001", "min_sz_okx": "0.1", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
-    {"name": "UNI", "ccy": "UNI", "tier": "tier_2_momentum", "okx_inst_id": "UNI-USDT-SWAP", "binance_inst_id": "UNIUSDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 3, "ct_val_okx": 1.0, "tick_sz": "0.001", "min_sz_okx": "1.0", "min_sz_binance": "0.1", "risk_per_trade_usd": 15.0}
+    {"name": "BTC", "ccy": "BTC", "tier": "tier_1_bluechip", "venue": "auto", "okx_inst_id": "BTC-USDT-SWAP", "binance_inst_id": "BTCUSDT", "gate_inst_id": "BTC_USDT", "max_leverage": 5, "sl_atr_mult": 1.8, "precision": 1, "ct_val_okx": 0.01, "tick_sz": "0.1", "min_sz_okx": "0.01", "min_sz_binance": "0.001", "risk_per_trade_usd": 15.0},
+    {"name": "ETH", "ccy": "ETH", "tier": "tier_1_bluechip", "venue": "auto", "okx_inst_id": "ETH-USDT-SWAP", "binance_inst_id": "ETHUSDT", "gate_inst_id": "ETH_USDT", "max_leverage": 5, "sl_atr_mult": 1.8, "precision": 2, "ct_val_okx": 0.1, "tick_sz": "0.01", "min_sz_okx": "0.01", "min_sz_binance": "0.01", "risk_per_trade_usd": 15.0},
+    {"name": "SOL", "ccy": "SOL", "tier": "tier_2_momentum", "venue": "auto", "okx_inst_id": "SOL-USDT-SWAP", "binance_inst_id": "SOLUSDT", "gate_inst_id": "SOL_USDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 2, "ct_val_okx": 1.0, "tick_sz": "0.01", "min_sz_okx": "0.01", "min_sz_binance": "0.1", "risk_per_trade_usd": 15.0},
+    {"name": "XRP", "ccy": "XRP", "tier": "tier_2_momentum", "venue": "auto", "okx_inst_id": "XRP-USDT-SWAP", "binance_inst_id": "XRPUSDT", "gate_inst_id": "XRP_USDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 100.0, "tick_sz": "0.0001", "min_sz_okx": "0.01", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
+    {"name": "DOGE", "ccy": "DOGE", "tier": "tier_2_momentum", "venue": "auto", "okx_inst_id": "DOGE-USDT-SWAP", "binance_inst_id": "DOGEUSDT", "gate_inst_id": "DOGE_USDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 1000.0, "tick_sz": "0.0001", "min_sz_okx": "0.01", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
+    {"name": "ARB", "ccy": "ARB", "tier": "tier_2_momentum", "venue": "auto", "okx_inst_id": "ARB-USDT-SWAP", "binance_inst_id": "ARBUSDT", "gate_inst_id": "ARB_USDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 100.0, "tick_sz": "0.0001", "min_sz_okx": "0.1", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
+    {"name": "SUI", "ccy": "SUI", "tier": "tier_2_momentum", "venue": "auto", "okx_inst_id": "SUI-USDT-SWAP", "binance_inst_id": "SUIUSDT", "gate_inst_id": "SUI_USDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 1.0, "tick_sz": "0.0001", "min_sz_okx": "0.01", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
+    {"name": "LINK", "ccy": "LINK", "tier": "tier_2_momentum", "venue": "auto", "okx_inst_id": "LINK-USDT-SWAP", "binance_inst_id": "LINKUSDT", "gate_inst_id": "LINK_USDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 3, "ct_val_okx": 1.0, "tick_sz": "0.001", "min_sz_okx": "0.1", "min_sz_binance": "0.1", "risk_per_trade_usd": 15.0},
+    {"name": "ADA", "ccy": "ADA", "tier": "tier_2_momentum", "venue": "auto", "okx_inst_id": "ADA-USDT-SWAP", "binance_inst_id": "ADAUSDT", "gate_inst_id": "ADA_USDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 4, "ct_val_okx": 100.0, "tick_sz": "0.0001", "min_sz_okx": "0.1", "min_sz_binance": "1.0", "risk_per_trade_usd": 15.0},
+    {"name": "UNI", "ccy": "UNI", "tier": "tier_2_momentum", "venue": "auto", "okx_inst_id": "UNI-USDT-SWAP", "binance_inst_id": "UNIUSDT", "gate_inst_id": "UNI_USDT", "max_leverage": 3, "sl_atr_mult": 2.2, "precision": 3, "ct_val_okx": 1.0, "tick_sz": "0.001", "min_sz_okx": "1.0", "min_sz_binance": "0.1", "risk_per_trade_usd": 15.0}
 ]
 
 
@@ -81,12 +81,18 @@ class UniverseManager:
         tier = item.get("tier") or ("tier_1_bluechip" if name in ("BTC", "ETH") else "tier_2_momentum")
         profile = TIER_PROFILES.get(tier, TIER_PROFILES["tier_2_momentum"])
 
+        venue = str(item.get("venue") or "auto").lower().strip()
+        if venue not in ("auto", "okx", "binance", "gate"):
+            venue = "auto"
+
         record = {
             "name": name,
             "ccy": item.get("ccy", name),
             "tier": tier,
+            "venue": venue,
             "okx_inst_id": item.get("okx_inst_id") or f"{name}-USDT-SWAP",
             "binance_inst_id": item.get("binance_inst_id") or f"{name}USDT",
+            "gate_inst_id": item.get("gate_inst_id") or f"{name}_USDT",
             "max_leverage": min(item.get("max_leverage", profile["max_leverage"]), profile["max_leverage"]),
             "sl_atr_mult": float(item.get("sl_atr_mult", profile["sl_atr_mult"])),
             "precision": int(item.get("precision", 2)),
@@ -99,7 +105,7 @@ class UniverseManager:
 
         pool.append(record)
         atomic_write_json(self.file_path, pool)
-        logger.info(f"Added instrument {name} to trading universe.")
+        logger.info(f"Added instrument {name} to trading universe with venue={venue}.")
         return True
 
     def remove_instrument(self, symbol: str) -> bool:
@@ -120,13 +126,18 @@ class UniverseManager:
             if item.get("name", "").upper() == canonical:
                 for k, v in updates.items():
                     if k != "name":  # Name is primary key
+                        if k == "venue":
+                            v = str(v).lower().strip()
+                            if v not in ("auto", "okx", "binance", "gate"):
+                                v = "auto"
                         item[k] = v
                 updated = True
                 break
         if updated:
             atomic_write_json(self.file_path, pool)
-            logger.info(f"Updated instrument {canonical} in universe.")
+            logger.info(f"Updated instrument {canonical} in universe: {updates}")
         return updated
 
 
 universe_manager = UniverseManager()
+

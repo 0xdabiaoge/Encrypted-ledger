@@ -46,9 +46,26 @@ class SmartOrderRouter:
         - Mainstream -> OKX vs Binance (SOR liquidity & slippage)
         """
         sym = normalize_symbol(symbol)
+
+        # 1. Check if symbol has a designated venue in the active trading universe
+        try:
+            from app.quant.universe import universe_manager
+            inst = universe_manager.get_instrument(sym)
+            if inst:
+                inst_venue = str(inst.get("venue") or "auto").lower().strip()
+                if inst_venue in ("okx", "binance", "gate"):
+                    return inst_venue, {
+                        "category": categorize_symbol(symbol),
+                        "symbol": sym,
+                        "designated_venue": inst_venue,
+                        "reason": f"标的专属指定交易所：[{sym}] 在交易池中配置绑定走 {inst_venue.upper()} 进行撮合与结算"
+                    }
+        except Exception:
+            pass
+
         preferred = settings.PREFERRED_VENUE.lower()
         if preferred in ("okx", "binance", "gate"):
-            return preferred, {"reason": f"手动指定行情/执行主所: {preferred.upper()}"}
+            return preferred, {"category": categorize_symbol(symbol), "symbol": sym, "reason": f"手动指定行情/执行主所: {preferred.upper()}"}
 
         # Check symbol category
         category = categorize_symbol(symbol)

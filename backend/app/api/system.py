@@ -23,6 +23,8 @@ class AddInstrumentRequest(BaseModel):
     name: str
     ccy: Optional[str] = None
     tier: Optional[str] = "tier_2_momentum"
+    venue: Optional[str] = "auto"
+    gate_inst_id: Optional[str] = None
     max_leverage: Optional[float] = 3.0
     sl_atr_mult: Optional[float] = 2.2
     precision: Optional[int] = 2

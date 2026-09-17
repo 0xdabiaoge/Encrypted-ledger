@@ -62,11 +62,51 @@ async def get_all_tickers(venue: str = Query("okx", description="okx | binance |
     symbols = [s for s in symbols if s]
     v_clean = venue.lower().strip()
 
+    inst_map = {inst.get("name", "").upper(): inst for inst in instruments if isinstance(inst, dict)}
+
     if v_clean in ("agg", "smart_agg"):
         async def _fetch_smart_agg(sym: str):
+            inst = inst_map.get(sym.upper())
+            inst_venue = str(inst.get("venue") or "auto").lower().strip() if inst else "auto"
+
+            # 1. Designated venue specified by user in universe
+            if inst_venue == "gate":
+                try:
+                    t_gate = await order_router.gate.get_ticker(sym)
+                    d = t_gate.__dict__.copy()
+                    d["venue"] = "gate"
+                    d["designated_venue"] = "gate"
+                    d["last"] = t_gate.last_price
+                    d["price"] = t_gate.last_price
+                    return sym, d
+                except Exception:
+                    pass
+            elif inst_venue == "okx":
+                try:
+                    t_okx = await order_router.okx.get_ticker(sym)
+                    d = t_okx.__dict__.copy()
+                    d["venue"] = "okx"
+                    d["designated_venue"] = "okx"
+                    d["last"] = t_okx.last_price
+                    d["price"] = t_okx.last_price
+                    return sym, d
+                except Exception:
+                    pass
+            elif inst_venue == "binance":
+                try:
+                    t_bin = await order_router.binance.get_ticker(sym)
+                    d = t_bin.__dict__.copy()
+                    d["venue"] = "binance"
+                    d["designated_venue"] = "binance"
+                    d["last"] = t_bin.last_price
+                    d["price"] = t_bin.last_price
+                    return sym, d
+                except Exception:
+                    pass
+
+            # 2. Auto / Default routing: Meme coins prioritize Gate.io
             is_meme = is_meme_or_altcoin(sym)
             if is_meme:
-                # Prioritize Gate.io for Meme and Altcoins
                 try:
                     t_gate = await order_router.gate.get_ticker(sym)
                     d = t_gate.__dict__.copy()
@@ -78,7 +118,7 @@ async def get_all_tickers(venue: str = Query("okx", description="okx | binance |
                 except Exception:
                     pass
 
-            # Mainstream or Gate fallback: OKX and Binance
+            # 3. Mainstream / Auto: OKX and Binance
             t_okx = None
             t_bin = None
             try:
@@ -195,8 +235,13 @@ async def get_klines(
     Supports smart category routing (Gate for Meme/Altcoin, OKX/Binance for Mainstream).
     """
     v_clean = venue.lower().strip()
+    inst = universe_manager.get_instrument(symbol)
+    inst_venue = str(inst.get("venue") or "auto").lower().strip() if inst else "auto"
+
     if v_clean in ("agg", "smart_agg"):
-        if is_meme_or_altcoin(symbol):
+        if inst_venue in ("okx", "binance", "gate"):
+            target_venue = inst_venue
+        elif is_meme_or_altcoin(symbol):
             target_venue = "gate"
         else:
             target_venue = "okx"
@@ -277,7 +322,18 @@ async def get_klines(
 @router.get("/candles/{symbol}")
 async def get_candles(symbol: str, timeframe: str = "15m", limit: int = 100, venue: str = "okx"):
     v_clean = venue.lower().strip()
-    adapter = order_router.gate if v_clean == "gate" or (v_clean in ("agg", "smart_agg") and is_meme_or_altcoin(symbol)) else order_router.get_adapter(v_clean if v_clean in ("okx", "binance") else "okx")
+    inst = universe_manager.get_instrument(symbol)
+    inst_venue = str(inst.get("venue") or "auto").lower().strip() if inst else "auto"
+
+    if v_clean in ("agg", "smart_agg"):
+        if inst_venue in ("okx", "binance", "gate"):
+            v_clean = inst_venue
+        elif is_meme_or_altcoin(symbol):
+            v_clean = "gate"
+        else:
+            v_clean = "okx"
+
+    adapter = order_router.gate if v_clean == "gate" else order_router.get_adapter(v_clean if v_clean in ("okx", "binance") else "okx")
     try:
         return await adapter.get_candles(symbol, timeframe=timeframe, limit=limit)
     except Exception as e:

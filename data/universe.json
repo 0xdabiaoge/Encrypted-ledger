@@ -12,7 +12,9 @@
     "tick_sz": "0.1",
     "min_sz_okx": "0.01",
     "min_sz_binance": "0.001",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "BTC_USDT"
   },
   {
     "name": "ETH",
@@ -27,7 +29,9 @@
     "tick_sz": "0.01",
     "min_sz_okx": "0.01",
     "min_sz_binance": "0.01",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "ETH_USDT"
   },
   {
     "name": "SOL",
@@ -42,7 +46,9 @@
     "tick_sz": "0.01",
     "min_sz_okx": "0.01",
     "min_sz_binance": "0.1",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "SOL_USDT"
   },
   {
     "name": "XRP",
@@ -57,7 +63,9 @@
     "tick_sz": "0.0001",
     "min_sz_okx": "0.01",
     "min_sz_binance": "1.0",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "XRP_USDT"
   },
   {
     "name": "DOGE",
@@ -72,7 +80,9 @@
     "tick_sz": "0.0001",
     "min_sz_okx": "0.01",
     "min_sz_binance": "1.0",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "DOGE_USDT"
   },
   {
     "name": "ARB",
@@ -87,7 +97,9 @@
     "tick_sz": "0.0001",
     "min_sz_okx": "0.1",
     "min_sz_binance": "1.0",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "ARB_USDT"
   },
   {
     "name": "SUI",
@@ -102,7 +114,9 @@
     "tick_sz": "0.0001",
     "min_sz_okx": "0.01",
     "min_sz_binance": "1.0",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "SUI_USDT"
   },
   {
     "name": "LINK",
@@ -117,7 +131,9 @@
     "tick_sz": "0.001",
     "min_sz_okx": "0.1",
     "min_sz_binance": "0.1",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "LINK_USDT"
   },
   {
     "name": "ADA",
@@ -132,7 +148,9 @@
     "tick_sz": "0.0001",
     "min_sz_okx": "0.1",
     "min_sz_binance": "1.0",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "ADA_USDT"
   },
   {
     "name": "UNI",
@@ -147,6 +165,8 @@
     "tick_sz": "0.001",
     "min_sz_okx": "1.0",
     "min_sz_binance": "0.1",
-    "risk_per_trade_usd": 15.0
+    "risk_per_trade_usd": 15.0,
+    "venue": "auto",
+    "gate_inst_id": "UNI_USDT"
   }
 ]
