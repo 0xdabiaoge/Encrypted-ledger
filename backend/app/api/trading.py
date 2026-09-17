@@ -6,12 +6,13 @@ Supports role-based data masking:
 """
 from __future__ import annotations
 
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional, List, Dict, Any
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from app.api.auth import get_optional_session, verify_admin_session
 from app.exchanges.router import order_router
 from app.scheduler.tasks import orchestrator
+from app.core.sharing import position_share_manager
 
 router = APIRouter(prefix="/trading", tags=["Trading Operations"])
 
@@ -21,6 +22,18 @@ class ClosePositionRequest(BaseModel):
     symbol: str
     side: str
     size: Optional[float] = None
+
+
+class CreatePositionShareRequest(BaseModel):
+    symbol: str
+    side: str
+    leverage: str = "5.0x"
+    entry_price: float = 0.0
+    mark_price: float = 0.0
+    unrealized_pnl_ratio: float = 0.0
+    venue: str = "okx"
+    council_insight: Optional[str] = ""
+    custom_alias: Optional[str] = None
 
 
 @router.get("/positions")
@@ -146,3 +159,51 @@ async def close_position(req: ClosePositionRequest):
         return {"status": "success", "result": res}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/share/create")
+async def create_position_share(
+    req: CreatePositionShareRequest,
+    session_payload=Depends(get_optional_session)
+):
+    """
+    Generate an authenticated or public share token for a specific position.
+    Strictly masks sensitive account data and private balances.
+    """
+    username = session_payload.get("username", "vip_member") if session_payload else "trader_quant"
+    try:
+        record = position_share_manager.create_share(
+            username=username,
+            symbol=req.symbol,
+            side=req.side,
+            leverage=req.leverage,
+            entry_price=req.entry_price,
+            mark_price=req.mark_price,
+            unrealized_pnl_ratio=req.unrealized_pnl_ratio,
+            venue=req.venue,
+            council_insight=req.council_insight or "",
+            custom_alias=req.custom_alias
+        )
+        return {"status": "success", "share": record}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/share/{share_id}")
+async def get_position_share(share_id: str):
+    """
+    Public open showcase endpoint for a shared position.
+    Accessible without credentials, exclusively exposes designated position track metrics.
+    """
+    record = position_share_manager.get_share(share_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="该仓位分享链接不存在或已过期失效")
+    return {"status": "success", "share": record}
+
+
+@router.get("/shares")
+async def list_position_shares(session_payload=Depends(get_optional_session)):
+    """List recent share records."""
+    username = session_payload.get("username") if session_payload else None
+    return {"status": "success", "shares": position_share_manager.list_shares(username)}
+

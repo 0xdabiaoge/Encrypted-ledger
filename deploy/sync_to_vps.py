@@ -92,8 +92,11 @@ def deploy_code_to_vps():
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/council/presets")
     print("Council presets response:", stdout.read().decode("utf-8", errors="replace")[:200])
 
-    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/council/seats")
-    print("Council seats length:", len(stdout.read().decode("utf-8", errors="replace")))
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/market/klines?symbol=BTC&interval=5m&limit=5")
+    print("Market K-Lines (5m) response:", stdout.read().decode("utf-8", errors="replace")[:140])
+
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/trading/share/EL-SH66335DD1")
+    print("Position Share response:", stdout.read().decode("utf-8", errors="replace")[:140])
 
     client.close()
     print("Sync, deployment, and push completed successfully!")

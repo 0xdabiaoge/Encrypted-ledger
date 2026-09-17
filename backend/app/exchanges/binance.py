@@ -82,7 +82,13 @@ class BinanceAdapter(BaseExchangeAdapter):
 
     @property
     def client(self) -> httpx.AsyncClient:
-        if self._client is None or self._client.is_closed:
+        try:
+            cur_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            cur_loop = None
+
+        if self._client is None or self._client.is_closed or getattr(self, "_loop", None) != cur_loop:
+            self._loop = cur_loop
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(10.0, connect=5.0),
                 limits=httpx.Limits(max_keepalive_connections=50, max_connections=100)
@@ -150,8 +156,35 @@ class BinanceAdapter(BaseExchangeAdapter):
 
     async def get_candles(self, symbol: str, timeframe: str = "15m", limit: int = 100) -> List[Dict[str, Any]]:
         inst_id = self._to_inst_id(symbol)
-        tf = timeframe.lower()
-        data = await self._request("GET", "/fapi/v1/klines", params={"symbol": inst_id, "interval": tf, "limit": limit})
+        tf_lower = timeframe.lower()
+        if tf_lower == "15d":
+            raw_limit = min(300, max(30, limit * 15))
+            d1_candles = await self.get_candles(symbol, timeframe="1d", limit=raw_limit)
+            if not d1_candles:
+                return []
+            resampled = []
+            for i in range(0, len(d1_candles), 15):
+                chunk = d1_candles[i:i+15]
+                if not chunk:
+                    continue
+                resampled.append({
+                    "timestamp": chunk[0]["timestamp"],
+                    "open": chunk[0]["open"],
+                    "high": max(c["high"] for c in chunk),
+                    "low": min(c["low"] for c in chunk),
+                    "close": chunk[-1]["close"],
+                    "volume": round(sum(c["volume"] for c in chunk), 4),
+                    "volume_usd": round(sum(c.get("volume_usd", 0.0) for c in chunk), 2)
+                })
+            return resampled
+
+        # Binance supported intervals: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
+        binance_tf_map = {
+            "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
+            "1h": "1h", "2h": "2h", "4h": "4h", "1d": "1d"
+        }
+        interval = binance_tf_map.get(tf_lower, "15m")
+        data = await self._request("GET", "/fapi/v1/klines", params={"symbol": inst_id, "interval": interval, "limit": limit})
         
         candles = []
         for row in data:

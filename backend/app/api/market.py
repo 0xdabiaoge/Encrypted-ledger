@@ -14,6 +14,38 @@ from app.quant.factors import compute_factor_matrix
 router = APIRouter(prefix="/market", tags=["Market Data"])
 
 
+def _calculate_ma_series(candles: List[Dict[str, Any]], period: int) -> List[Dict[str, Any]]:
+    mas = []
+    closes = [c["close"] for c in candles]
+    for i in range(len(candles)):
+        if i + 1 < period:
+            continue
+        avg = sum(closes[i + 1 - period : i + 1]) / period
+        mas.append({
+            "time": candles[i]["timestamp"] // 1000,
+            "value": round(avg, 4)
+        })
+    return mas
+
+
+def _calculate_boll_series(candles: List[Dict[str, Any]], period: int = 20, mult: float = 2.0) -> Dict[str, List[Dict[str, Any]]]:
+    upper = []
+    middle = []
+    lower = []
+    closes = [c["close"] for c in candles]
+    for i in range(len(candles)):
+        if i + 1 < period:
+            continue
+        window = closes[i + 1 - period : i + 1]
+        mean = sum(window) / period
+        std = (sum((x - mean) ** 2 for x in window) / period) ** 0.5
+        t_sec = candles[i]["timestamp"] // 1000
+        upper.append({"time": t_sec, "value": round(mean + mult * std, 4)})
+        middle.append({"time": t_sec, "value": round(mean, 4)})
+        lower.append({"time": t_sec, "value": round(mean - mult * std, 4)})
+    return {"upper": upper, "middle": middle, "lower": lower}
+
+
 @router.get("/universe")
 async def get_universe():
     """List all configured instruments in trading pool."""
@@ -21,13 +53,62 @@ async def get_universe():
 
 
 @router.get("/tickers")
-async def get_all_tickers(venue: str = Query("okx", description="okx | binance")):
-    """Fetch tickers for all universe instruments in parallel with high resilience."""
+async def get_all_tickers(venue: str = Query("okx", description="okx | binance | agg")):
+    """Fetch tickers for all universe instruments in parallel with high resilience and smart aggregation."""
     instruments = universe_manager.load_instruments()
     symbols = [inst.get("name", "") if isinstance(inst, dict) else getattr(inst, "name", "") for inst in instruments]
     symbols = [s for s in symbols if s]
-    adapter = order_router.get_adapter(venue)
-    alt_venue = "binance" if venue.lower() == "okx" else "okx"
+    v_clean = venue.lower().strip()
+
+    if v_clean == "agg":
+        async def _fetch_agg(sym: str):
+            t_okx = None
+            t_bin = None
+            try:
+                t_okx = await order_router.okx.get_ticker(sym)
+            except Exception:
+                pass
+            try:
+                t_bin = await order_router.binance.get_ticker(sym)
+            except Exception:
+                pass
+            
+            if t_okx and t_bin:
+                avg_price = (t_okx.last_price + t_bin.last_price) / 2.0
+                d = {
+                    "venue": "agg",
+                    "symbol": sym,
+                    "inst_id": f"{sym}-AGG",
+                    "last_price": avg_price,
+                    "last": avg_price,
+                    "price": avg_price,
+                    "bid_price": max(t_okx.bid_price, t_bin.bid_price),
+                    "ask_price": min(t_okx.ask_price, t_bin.ask_price),
+                    "volume_24h_usd": t_okx.volume_24h_usd + t_bin.volume_24h_usd,
+                    "high_24h": max(t_okx.high_24h, t_bin.high_24h),
+                    "low_24h": min(t_okx.low_24h, t_bin.low_24h),
+                    "timestamp_ms": max(t_okx.timestamp_ms, t_bin.timestamp_ms)
+                }
+                return sym, d
+            elif t_okx:
+                d = t_okx.__dict__.copy()
+                d["venue"] = "agg"
+                d["last"] = t_okx.last_price
+                d["price"] = t_okx.last_price
+                return sym, d
+            elif t_bin:
+                d = t_bin.__dict__.copy()
+                d["venue"] = "agg"
+                d["last"] = t_bin.last_price
+                d["price"] = t_bin.last_price
+                return sym, d
+            return sym, None
+
+        results = await asyncio.gather(*[_fetch_agg(s) for s in symbols])
+        return {sym: d for sym, d in results if d is not None}
+
+    adapter = order_router.get_adapter(v_clean)
+    alt_venue = "binance" if v_clean == "okx" else "okx"
     alt_adapter = order_router.get_adapter(alt_venue)
 
     async def _fetch_one(sym: str):
@@ -72,6 +153,87 @@ async def get_ticker(symbol: str, venue: str = Query("okx", description="okx | b
             return d
         except Exception:
             raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/klines")
+async def get_klines(
+    symbol: str = Query("BTC", description="Symbol name (e.g. BTC, ETH, SOL)"),
+    interval: str = Query("5m", description="5m | 15m | 1h | 4h | 1d | 15d"),
+    venue: str = Query("okx", description="okx | binance | agg"),
+    limit: int = Query(150, ge=20, le=500)
+):
+    """
+    Exchange-grade candlestick data endpoint supporting 5m to 15d intervals,
+    volume histograms, and pre-computed technical indicators (MA7, MA25, MA99, BOLL).
+    """
+    target_venue = "okx" if venue.lower() not in ("okx", "binance") else venue.lower()
+    adapter = order_router.get_adapter(target_venue)
+    alt_venue = "binance" if target_venue == "okx" else "okx"
+    alt_adapter = order_router.get_adapter(alt_venue)
+
+    candles = None
+    used_venue = target_venue
+    try:
+        candles = await adapter.get_candles(symbol, timeframe=interval, limit=limit)
+    except Exception:
+        try:
+            candles = await alt_adapter.get_candles(symbol, timeframe=interval, limit=limit)
+            used_venue = alt_venue
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch {interval} klines for {symbol}: {e}")
+
+    if not candles:
+        raise HTTPException(status_code=404, detail=f"No candlestick data returned for {symbol}")
+
+    formatted_candles = []
+    volume_data = []
+    for c in candles:
+        t_sec = c["timestamp"] // 1000
+        formatted_candles.append({
+            "time": t_sec,
+            "open": c["open"],
+            "high": c["high"],
+            "low": c["low"],
+            "close": c["close"]
+        })
+        is_up = c["close"] >= c["open"]
+        volume_data.append({
+            "time": t_sec,
+            "value": c["volume"],
+            "color": "rgba(34, 197, 94, 0.55)" if is_up else "rgba(239, 68, 68, 0.55)"
+        })
+
+    ma7 = _calculate_ma_series(candles, 7)
+    ma25 = _calculate_ma_series(candles, 25)
+    ma99 = _calculate_ma_series(candles, 99)
+    boll = _calculate_boll_series(candles, 20, 2.0)
+
+    first_close = candles[0]["close"]
+    last_close = candles[-1]["close"]
+    change_pct = ((last_close - first_close) / first_close * 100) if first_close > 0 else 0.0
+
+    return {
+        "symbol": symbol.upper(),
+        "interval": interval,
+        "venue": used_venue,
+        "count": len(formatted_candles),
+        "candles": formatted_candles,
+        "volumes": volume_data,
+        "indicators": {
+            "ma7": ma7,
+            "ma25": ma25,
+            "ma99": ma99,
+            "boll": boll
+        },
+        "stats": {
+            "last": last_close,
+            "open": candles[-1]["open"],
+            "high": max(c["high"] for c in candles),
+            "low": min(c["low"] for c in candles),
+            "change_pct": round(change_pct, 2),
+            "total_volume": round(sum(c["volume"] for c in candles), 2)
+        }
+    }
 
 
 @router.get("/candles/{symbol}")

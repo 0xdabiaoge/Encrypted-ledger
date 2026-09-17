@@ -1,0 +1,38 @@
+{
+  "EL-SH9CF51403": {
+    "share_id": "EL-SH9CF51403",
+    "creator_user": "vip_trader_8888",
+    "trader_alias": "vip***88",
+    "symbol": "BTC-USDT-SWAP",
+    "venue": "OKX",
+    "side": "LONG",
+    "leverage": "10x",
+    "entry_price": 64200.5,
+    "mark_price": 76550.0,
+    "unrealized_pnl_ratio": 0.1923,
+    "roi_pct": "+19.23%",
+    "status": "保本锁利中",
+    "council_insight": "4H突破共振 + 微积分加速度爆发",
+    "created_at_iso": "2026-09-17T09:16:34.269251+00:00",
+    "created_at_formatted": "2026-09-17 09:16:34 UTC",
+    "is_masked": true
+  },
+  "EL-SH66335DD1": {
+    "share_id": "EL-SH66335DD1",
+    "creator_user": "trader_quant",
+    "trader_alias": "tra***nt",
+    "symbol": "BTC-USDT-SWAP",
+    "venue": "OKX",
+    "side": "LONG",
+    "leverage": "5.0x",
+    "entry_price": 64200.5,
+    "mark_price": 76550.0,
+    "unrealized_pnl_ratio": 0.2845,
+    "roi_pct": "+28.45%",
+    "status": "保本锁利中",
+    "council_insight": "顺应 4H 宏观大势通道，微积分加速度 (v>0, a>0) 爆发，CIO 全票核准。",
+    "created_at_iso": "2026-09-17T09:23:14.453080+00:00",
+    "created_at_formatted": "2026-09-17 09:23:14 UTC",
+    "is_masked": true
+  }
+}

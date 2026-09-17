@@ -4,10 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Encrypted Ledger - 商用级加密货币量化对冲与多智能体共识决策终端</title>
-  <!-- Tailwind CSS & Lucide Icons & Chart.js -->
+  <!-- Tailwind CSS & Lucide Icons & Chart.js & Lightweight Charts -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -42,6 +43,35 @@
       <button onclick="openAuthModal('login')" class="underline hover:text-white font-medium">管理员登录全透视</button>
       <span class="text-emerald-600">|</span>
       <button onclick="openAuthModal('register')" class="underline hover:text-white font-medium">会员注册申请</button>
+    </div>
+  </div>
+
+  <!-- Dedicated User Share Showcase Banner (Shown only when ?share=... is present in URL) -->
+  <div id="dedicated-share-showcase-section" class="hidden bg-gradient-to-r from-emerald-950/80 via-dark-850 to-dark-900 border-b border-emerald-500/30 px-6 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-emerald-400 flex items-center justify-center text-black font-black text-lg shadow-lg">
+          🏆
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-white text-sm">专属个人仓位战绩展示</span>
+            <span class="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold">已通过投委会真实性验签</span>
+          </div>
+          <p class="text-xs text-gray-300 mt-0.5">
+            您正在查看由交易员 <b id="shared-user-name" class="text-amber-300 font-mono font-bold">VIP***88</b> 分享的实盘仓位战绩。本页面仅展示该专属单据，全所底层总资产与私密凭据已启动物理级去敏隔离。
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button onclick="viewCurrentSharePoster()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center space-x-1 shadow">
+          <i data-lucide="award" class="w-3.5 h-3.5"></i>
+          <span>查看战绩海报</span>
+        </button>
+        <button onclick="dismissShareShowcase()" class="px-3 py-1.5 rounded-lg bg-dark-card border border-dark-border text-gray-300 hover:text-white text-xs transition">
+          返回完整量化大屏
+        </button>
+      </div>
     </div>
   </div>
 
@@ -200,20 +230,50 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left 2 Cols: Factor Matrix & Positions -->
       <div class="lg:col-span-2 space-y-6">
-        <!-- Factor Matrix -->
+        <!-- Factor Matrix & Candlestick Chart Center -->
         <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex flex-wrap items-center justify-between mb-4 gap-2">
             <div class="flex items-center space-x-2">
               <i data-lucide="layout-grid" class="w-5 h-5 text-brand-500"></i>
               <h2 class="text-base font-bold text-white">交易宇宙与因果动力学五大因子矩阵</h2>
+              <button onclick="openFactorMatrixGuideModal()" class="text-gray-400 hover:text-emerald-400 text-xs px-2 py-0.5 rounded border border-dark-border hover:border-emerald-500/30 flex items-center space-x-1 transition" title="查看五大因子通俗大白话解读">
+                <i data-lucide="help-circle" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span class="text-[11px] text-gray-300 font-medium">通俗解读</span>
+              </button>
             </div>
-            <button onclick="openAddInstrumentModal()" class="text-xs bg-dark-850 hover:bg-dark-border border border-dark-border px-3 py-1.5 rounded-md text-emerald-400 flex items-center space-x-1">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-              <span>添加自选币种</span>
-            </button>
+            
+            <div class="flex flex-wrap items-center space-x-2">
+              <!-- View Mode Toggle: Table Matrix vs Candlestick Chart -->
+              <div class="bg-dark-850 p-0.5 rounded-lg border border-dark-border flex items-center text-xs">
+                <button id="btn-view-matrix" onclick="switchMarketViewMode('matrix')" class="px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/40 flex items-center space-x-1 transition cursor-pointer">
+                  <i data-lucide="table" class="w-3.5 h-3.5"></i>
+                  <span>因子矩阵</span>
+                </button>
+                <button id="btn-view-kline" onclick="switchMarketViewMode('kline')" class="px-2.5 py-1 rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-1 transition cursor-pointer">
+                  <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
+                  <span>专业K线</span>
+                </button>
+              </div>
+
+              <!-- Market Data Venue Switcher -->
+              <div class="flex items-center space-x-1 bg-dark-850 border border-dark-border rounded-lg px-2.5 py-1 text-xs">
+                <span class="text-gray-400">数据源:</span>
+                <select id="select-market-venue" onchange="changeMarketVenue(this.value)" class="bg-transparent text-emerald-400 font-bold focus:outline-none cursor-pointer">
+                  <option value="okx" class="bg-dark-900 text-white">OKX 欧易 (默认)</option>
+                  <option value="binance" class="bg-dark-900 text-white">Binance 币安合约</option>
+                  <option value="agg" class="bg-dark-900 text-white">双所智能聚合 (Dual Hub)</option>
+                </select>
+              </div>
+
+              <button onclick="openAddInstrumentModal()" class="text-xs bg-dark-850 hover:bg-dark-border border border-dark-border px-3 py-1.5 rounded-md text-emerald-400 flex items-center space-x-1 transition">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                <span>添加自选币种</span>
+              </button>
+            </div>
           </div>
 
-          <div class="overflow-x-auto">
+          <!-- View 1: Factor Matrix Table -->
+          <div id="container-matrix-view" class="overflow-x-auto">
             <table class="w-full text-left text-xs text-gray-300">
               <thead class="bg-dark-850 text-gray-400 uppercase text-[11px] border-b border-dark-border">
                 <tr>
@@ -233,6 +293,77 @@
               </tbody>
             </table>
           </div>
+
+          <!-- View 2: Professional Candlestick (K-Line) Chart -->
+          <div id="container-kline-view" class="hidden space-y-3">
+            <!-- K-line Control Bar -->
+            <div class="flex flex-wrap items-center justify-between bg-dark-850 p-2.5 rounded-lg border border-dark-border gap-2">
+              <!-- Left: Symbol Selector & Price Ticker Display -->
+              <div class="flex flex-wrap items-center space-x-2 sm:space-x-3">
+                <div class="flex items-center space-x-1.5">
+                  <label class="text-gray-400 text-xs font-medium">标的:</label>
+                  <select id="kline-symbol-select" onchange="changeKlineSymbol(this.value)" class="bg-dark-card border border-dark-border rounded px-2.5 py-1 text-white font-mono font-bold text-xs">
+                    <!-- Populated dynamically -->
+                  </select>
+                </div>
+
+                <div class="flex items-center space-x-2 pl-2 border-l border-dark-border font-mono text-xs">
+                  <span id="kline-current-price" class="text-lg font-bold text-emerald-400">$0.00</span>
+                  <span id="kline-change-badge" class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-400">+0.00%</span>
+                </div>
+
+                <div class="hidden md:flex items-center space-x-3 text-[11px] text-gray-400 font-mono">
+                  <span>最高: <b id="kline-high-val" class="text-gray-200">--</b></span>
+                  <span>最低: <b id="kline-low-val" class="text-gray-200">--</b></span>
+                  <span>成交量: <b id="kline-vol-val" class="text-gray-200">--</b></span>
+                </div>
+              </div>
+
+              <!-- Right: Timeframe Interval Pills & Indicator Toggles -->
+              <div class="flex flex-wrap items-center space-x-2">
+                <!-- Interval Selector: 5m, 15m, 1h, 4h, 1d, 15d -->
+                <div class="flex items-center bg-dark-card rounded-lg p-0.5 border border-dark-border text-xs font-mono">
+                  <button onclick="setKlineInterval('5m')" id="tf-btn-5m" class="px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">5m</button>
+                  <button onclick="setKlineInterval('15m')" id="tf-btn-15m" class="px-2 py-0.5 rounded text-gray-400 hover:text-white">15m</button>
+                  <button onclick="setKlineInterval('1h')" id="tf-btn-1h" class="px-2 py-0.5 rounded text-gray-400 hover:text-white">1h</button>
+                  <button onclick="setKlineInterval('4h')" id="tf-btn-4h" class="px-2 py-0.5 rounded text-gray-400 hover:text-white">4h</button>
+                  <button onclick="setKlineInterval('1d')" id="tf-btn-1d" class="px-2 py-0.5 rounded text-gray-400 hover:text-white">1d</button>
+                  <button onclick="setKlineInterval('15d')" id="tf-btn-15d" class="px-2 py-0.5 rounded text-gray-400 hover:text-white">15d</button>
+                </div>
+
+                <!-- Indicators Toggles -->
+                <div class="flex items-center space-x-2 text-[11px]">
+                  <label class="flex items-center space-x-1 cursor-pointer text-amber-400">
+                    <input type="checkbox" id="chk-toggle-ma" checked onchange="toggleKlineIndicator('ma')" class="rounded text-amber-500 focus:ring-0 w-3 h-3" />
+                    <span>MA(7/25/99)</span>
+                  </label>
+                  <label class="flex items-center space-x-1 cursor-pointer text-cyan-400">
+                    <input type="checkbox" id="chk-toggle-boll" onchange="toggleKlineIndicator('boll')" class="rounded text-cyan-500 focus:ring-0 w-3 h-3" />
+                    <span>布林带(BOLL)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Legend Status Bar -->
+            <div id="kline-legend" class="text-[11px] font-mono text-gray-400 flex flex-wrap items-center space-x-3 px-1">
+              <span>MA7: <span id="legend-ma7" class="text-amber-400 font-semibold">--</span></span>
+              <span>MA25: <span id="legend-ma25" class="text-purple-400 font-semibold">--</span></span>
+              <span>MA99: <span id="legend-ma99" class="text-cyan-400 font-semibold">--</span></span>
+              <span id="legend-boll-wrap" class="hidden">BOLL(20,2): <span id="legend-boll" class="text-blue-300 font-semibold">--</span></span>
+              <span class="ml-auto text-[10px] text-gray-500">滚轮缩放 / 鼠标拖拽平移 / 实时指标联动</span>
+            </div>
+
+            <!-- Lightweight Chart Canvas Container -->
+            <div id="tv-chart-container" class="w-full h-[420px] rounded-lg overflow-hidden border border-dark-border bg-dark-900 relative">
+              <div id="kline-loading" class="absolute inset-0 flex items-center justify-center bg-dark-900/80 backdrop-blur-xs text-xs text-gray-400 z-10 hidden">
+                <div class="flex items-center space-x-2">
+                  <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-emerald-400"></i>
+                  <span>正在加载交易所毫秒级K线行情...</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Real-time Positions -->
@@ -242,7 +373,14 @@
               <i data-lucide="activity" class="w-5 h-5 text-blue-400"></i>
               <h2 class="text-base font-bold text-white">双所实时存量持仓与浮盈保护 (OKX 与币安合约)</h2>
             </div>
-            <span id="pos-view-mode-badge" class="text-xs px-2 py-0.5 rounded bg-dark-850 text-gray-400 border border-dark-border">去敏展示模式</span>
+            <div class="flex items-center space-x-2">
+              <button onclick="openDemoShareModal()" class="text-xs bg-dark-850 hover:bg-dark-border border border-emerald-500/30 text-emerald-400 px-2.5 py-1 rounded-md flex items-center space-x-1 transition" title="体验生成机构级量化收益分享海报">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                <span>战绩海报体验</span>
+              </button>
+              <span id="pos-view-mode-badge" class="text-xs px-2 py-0.5 rounded bg-dark-850 text-gray-400 border border-dark-border">去敏展示模式</span>
+            </div>
+          </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs text-gray-300">
@@ -464,6 +602,250 @@
     </div>
   </div>
 
+  <!-- 2.5 Factor Matrix Plain Guide Modal (通俗大白话速查字典) -->
+  <div id="modal-factor-guide" class="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-dark-card border border-dark-border rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
+      <div class="flex items-center justify-between border-b border-dark-border px-6 py-4 bg-dark-850">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-black">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base">交易宇宙与因果动力学五大因子 · 通俗速查字典</h3>
+            <p class="text-xs text-gray-400">顶级量化对冲基金的严谨数理逻辑，用最接地气的大白话拆解</p>
+          </div>
+        </div>
+        <button onclick="closeFactorMatrixGuideModal()" class="text-gray-400 hover:text-white text-xl p-1">&times;</button>
+      </div>
+
+      <div class="p-6 overflow-y-auto space-y-4 text-xs">
+        <!-- 1. Trading Universe -->
+        <div class="border border-dark-border/80 rounded-xl p-4 bg-dark-850/60 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm flex items-center space-x-2">
+              <span class="text-emerald-400">🌌</span>
+              <span>1. 什么是「交易宇宙 (Trading Universe)」？</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">精选战术标的池</span>
+          </div>
+          <p class="text-gray-300 leading-relaxed">
+            <b>通俗比喻：</b>就像特警部队执行任务，不是大街上看见人就抓，而是锁定受过严密审查的“重点目标”。<br/>
+            <b>实战原理：</b>加密圈有数万种山寨土狗代币，99% 深度极其贫瘠，动辄发生恶意插针甚至跑路。本系统的「交易宇宙」是<b>经过 24H 成交量、订单簿深度与波动率严格筛选出的合规标的池</b>（如 BTC、ETH、SOL、DOGE 等）。量化引擎与 4+1 投委会<b>只在交易宇宙内的币种中寻找确定性机会</b>，绝不涉足高风险杂币。您可随时在界面点击「+ 添加自选币种」扩充属于您的交易宇宙。
+          </p>
+        </div>
+
+        <!-- 2. Price Sources -->
+        <div class="border border-dark-border/80 rounded-xl p-4 bg-dark-850/60 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm flex items-center space-x-2">
+              <span class="text-blue-400">🌐</span>
+              <span>2. 币种最新价格从哪里来？如何切换数据源？</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">毫秒级撮合通道</span>
+          </div>
+          <p class="text-gray-300 leading-relaxed">
+            <b>数据源接入：</b>系统直连全球前两大顶尖交易所的实时行情通道：<br/>
+            • <b>OKX (欧易 V5 API)</b>：全球流动性与永续合约深度顶级，系统默认主力数据源；<br/>
+            • <b>Binance (币安合约 API)</b>：全球交易量最大的衍生品市场；<br/>
+            • <b>双所智能聚合 (Dual Hub)</b>：两所最优买一卖一价加权融合，具备双重互备容灾能力。<br/>
+            <b>自由切换：</b>您只需在上方「交易宇宙」标题右侧的<b>「数据源选择器」</b>中一键下拉，即可秒级切换数据通道，K线与最新市价即刻联动更新！
+          </p>
+        </div>
+
+        <!-- 3. Calculus Dynamics -->
+        <div class="border border-dark-border/80 rounded-xl p-4 bg-dark-850/60 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm flex items-center space-x-2">
+              <span class="text-amber-400">🏎️</span>
+              <span>3. 速度与加速度 (微积分动力学 v/a) 怎么看？</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">力学一二阶导数</span>
+          </div>
+          <p class="text-gray-300 leading-relaxed">
+            <b>通俗比喻：</b>就像开跑车，<b>速度 $v$ 是时速表</b>，<b>加速度 $a$ 是油门到底还是急刹车</b>。<br/>
+            • <span class="text-emerald-400 font-bold">$v > 0, a > 0$ (绿灯全开)</span>：不仅在涨，而且涨势还在凶猛加速（油门到底，主升浪狂飙，动能突破席位极速跟进做多）；<br/>
+            • <span class="text-amber-400 font-bold">$v > 0, a < 0$ (强弩之末)</span>：虽然价格在创新高，但上涨推力正在衰减（车在滑行快要没油了，小心诱多假突破，准备止盈）；<br/>
+            • <span class="text-red-400 font-bold">$v < 0, a < 0$ (悬崖坠落)</span>：不仅在跌，而且跌势还在加速雪崩，严禁逆势抄底接飞刀！
+          </p>
+        </div>
+
+        <!-- 4. ADX & RSI -->
+        <div class="border border-dark-border/80 rounded-xl p-4 bg-dark-850/60 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm flex items-center space-x-2">
+              <span class="text-purple-400">🌡️</span>
+              <span>4. 1H ADX 与 RSI 是什么意思？</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">趋势烈度与体温计</span>
+          </div>
+          <p class="text-gray-300 leading-relaxed">
+            • <b>ADX (趋势强弱风向标)</b>：告诉你“现在是汹涌澎湃的单边主行情，还是绞肉机式的无序震荡”。<b>ADX > 25</b> 表示大趋势明确，顺势交易胜率极高；<b>ADX < 20</b> 代表无方向垃圾震荡，系统自动观望，坚决不开单防磨损。<br/>
+            • <b>RSI (情绪体温计)</b>：衡量市场打到什么狂热或恐慌程度。<b>RSI > 75</b> 代表极度超买，买盘透支；<b>RSI < 30</b> 代表极度恐慌超卖，空头强弩之末。
+          </p>
+        </div>
+
+        <!-- 5. Orderbook Imbalance -->
+        <div class="border border-dark-border/80 rounded-xl p-4 bg-dark-850/60 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm flex items-center space-x-2">
+              <span class="text-cyan-400">🧱</span>
+              <span>5. 盘口失衡度 (Orderbook Imbalance) 是什么？</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">真金白银深度墙</span>
+          </div>
+          <p class="text-gray-300 leading-relaxed">
+            <b>实战原理：</b>K 线的红绿很容易被几个大单短时间画图作假，但<b>订单簿 Top 20 档里沉淀的真金白银挂单做不了假</b>。<br/>
+            • <b>失衡度为正 (如 +25%)</b>：买单挂单量远大于上方卖单，主力大户在真金白银托底护盘；<br/>
+            • <b>失衡度为负 (如 -30%)</b>：头顶压着巨量抛单巨墙，一旦市价下砸极易引发踩踏雪崩。
+          </p>
+        </div>
+
+        <!-- 6. Alpha Score -->
+        <div class="border border-dark-border/80 rounded-xl p-4 bg-dark-850/60 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm flex items-center space-x-2">
+              <span class="text-emerald-400">🎯</span>
+              <span>6. ALPHA分 / 信号是如何做决定的？</span>
+            </span>
+            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">融合决策总决断</span>
+          </div>
+          <p class="text-gray-300 leading-relaxed">
+            系统将<b>趋势动量、微积分加速度、盘口深度失衡度、资金费率多空比</b>这四大维度输入数学模型，计算出 0~100 的终极 Alpha 分值。<br/>
+            $\ge 70$ 分触发做多信号，$\le 35$ 分触发做空信号，其余区间保持空仓观望（Capital Preservation First）。
+          </p>
+        </div>
+      </div>
+
+      <div class="flex justify-end p-4 border-t border-dark-border bg-dark-850">
+        <button onclick="closeFactorMatrixGuideModal()" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition">
+          我明白了，开始看盘
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2.6 Position Share Showcase Modal (机构级量化收益战绩海报) -->
+  <div id="modal-position-share" class="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-dark-card border border-dark-border rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b border-dark-border px-5 py-3.5 bg-dark-850">
+        <div class="flex items-center space-x-2">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center font-black">
+            <i data-lucide="award" class="w-4 h-4"></i>
+          </div>
+          <span class="font-bold text-white text-sm">机构级量化实盘收益战绩海报</span>
+        </div>
+        <button onclick="closePositionShareModal()" class="text-gray-400 hover:text-white text-xl p-1">&times;</button>
+      </div>
+
+      <!-- Poster Body -->
+      <div class="p-6 space-y-4 overflow-y-auto">
+        <!-- Visual Share Poster Card -->
+        <div id="poster-capture-area" class="bg-gradient-to-br from-[#0c121e] via-[#0d1624] to-[#080d16] border-2 border-emerald-500/40 rounded-2xl p-6 shadow-2xl relative overflow-hidden space-y-4">
+          <!-- Background Watermark -->
+          <div class="absolute -right-8 -bottom-8 opacity-5 text-emerald-400 font-black text-9xl pointer-events-none select-none">
+            EL
+          </div>
+
+          <!-- Poster Brand Header -->
+          <div class="flex items-center justify-between border-b border-emerald-500/20 pb-3">
+            <div class="flex items-center space-x-2.5">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center font-black text-black text-sm shadow-md">
+                EL
+              </div>
+              <div>
+                <div class="font-black tracking-wider text-white text-xs">ENCRYPTED LEDGER</div>
+                <div class="text-[9px] text-emerald-400 font-mono">QUANT HEDGE FUND PROOF</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <span id="poster-trader-alias" class="text-xs font-mono font-bold text-gray-200">VIP***88</span>
+              <div class="text-[9px] text-gray-400">实盘认证操盘手</div>
+            </div>
+          </div>
+
+          <!-- Symbol & Leverage Banner -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span id="poster-symbol" class="text-xl font-black font-mono text-white">BTC-USDT-SWAP</span>
+              <span id="poster-venue" class="text-[10px] px-1.5 py-0.5 rounded bg-dark-850 border border-dark-border text-gray-300 font-mono">OKX</span>
+            </div>
+            <div id="poster-side-badge" class="px-2.5 py-1 rounded-full font-bold text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-mono">
+              做多 LONG 5.0x
+            </div>
+          </div>
+
+          <!-- Grand ROI Display -->
+          <div class="py-2 text-center">
+            <div class="text-[11px] uppercase tracking-widest text-gray-400 font-medium">累计未实现收益率 (ROI)</div>
+            <div id="poster-roi-pct" class="text-5xl font-black font-mono text-emerald-400 tracking-tight drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+              +28.45%
+            </div>
+            <div id="poster-status-tag" class="text-xs font-semibold text-emerald-300 mt-1">
+              ★ 保本锁利中 (动态追踪停损保护)
+            </div>
+          </div>
+
+          <!-- Price Details Grid -->
+          <div class="grid grid-cols-2 gap-3 bg-dark-850/70 border border-dark-border/60 rounded-xl p-3 text-xs font-mono">
+            <div>
+              <div class="text-gray-500 text-[10px]">入场均价 (Entry Price)</div>
+              <div id="poster-entry-price" class="text-gray-200 font-bold text-sm">$64,200.50</div>
+            </div>
+            <div>
+              <div class="text-gray-500 text-[10px]">当前标记价 (Mark Price)</div>
+              <div id="poster-mark-price" class="text-emerald-400 font-bold text-sm">$76,550.00</div>
+            </div>
+          </div>
+
+          <!-- Council Insight Citation -->
+          <div class="bg-emerald-950/30 border border-emerald-500/20 rounded-xl p-3 text-xs space-y-1">
+            <div class="flex items-center space-x-1 text-emerald-400 font-bold text-[11px]">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+              <span>4+1 投委会 CIO 决议与入场依据:</span>
+            </div>
+            <p id="poster-council-insight" class="text-gray-300 text-[11px] leading-relaxed">
+              顺应 4H 宏观大势通道，微积分加速度 (v>0, a>0) 与盘口失衡度共振触发，经投委会 CIO 终审裁决执行。
+            </p>
+          </div>
+
+          <!-- Footer Verification & Stamp -->
+          <div class="flex items-center justify-between text-[10px] text-gray-500 pt-2 border-t border-dark-border/40 font-mono">
+            <div>
+              <span>分享编码: </span><b id="poster-share-id" class="text-amber-400">EL-SH9CF51403</b>
+              <div id="poster-timestamp" class="text-gray-400 text-[9px]">2026-09-17 17:30 UTC</div>
+            </div>
+            <div class="text-right">
+              <span class="text-emerald-400 font-bold">100% 真实合约撮合</span>
+              <div class="text-gray-500 text-[9px]">底层资金已安全脱敏保护</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-2 pt-1">
+          <div class="flex items-center space-x-2">
+            <input id="input-share-url" type="text" readonly class="flex-1 bg-dark-850 border border-dark-border rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none select-all" />
+            <button onclick="copyShareUrl()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center space-x-1 shrink-0 cursor-pointer">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span>复制链接</span>
+            </button>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="copyShareText()" class="flex-1 py-2 rounded-lg bg-dark-850 hover:bg-dark-border border border-dark-border text-gray-200 text-xs font-semibold transition flex items-center justify-center space-x-1 cursor-pointer">
+              <i data-lucide="message-square" class="w-3.5 h-3.5 text-blue-400"></i>
+              <span>复制社群分享文案</span>
+            </button>
+            <button onclick="openDedicatedShareTab()" class="flex-1 py-2 rounded-lg bg-dark-850 hover:bg-dark-border border border-dark-border text-emerald-400 text-xs font-semibold transition flex items-center justify-center space-x-1 cursor-pointer">
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+              <span>预览专属独立大屏</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 3. Add Instrument Modal -->
   <div id="modal-add-inst" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50 p-4">
     <div class="bg-dark-card border border-dark-border rounded-xl max-w-md w-full p-5 space-y-4">
@@ -517,29 +899,29 @@
         <button onclick="closeAdminSettingsModal()" class="text-gray-400 hover:text-white text-xl p-1">&times;</button>
       </div>
 
-      <!-- Navigation Tabs (6 Tabs) -->
-      <div class="flex border-b border-dark-border bg-dark-850/60 px-6 space-x-3 text-xs font-medium overflow-x-auto">
-        <button id="tab-btn-creds" onclick="switchAdminTab('creds')" class="py-3 border-b-2 border-emerald-400 text-emerald-400 flex items-center space-x-1.5 transition whitespace-nowrap">
+      <!-- Navigation Tabs (6 Tabs) - Fixed Flex Shrink & Occlusion -->
+      <div class="flex flex-shrink-0 shrink-0 border-b border-dark-border bg-dark-850/90 px-6 py-2.5 space-x-2 text-xs font-medium overflow-x-auto items-center min-h-[52px]">
+        <button id="tab-btn-creds" onclick="switchAdminTab('creds')" class="py-2 px-3.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm flex items-center space-x-1.5 transition whitespace-nowrap font-bold cursor-pointer shrink-0">
           <i data-lucide="key" class="w-3.5 h-3.5"></i>
           <span>交易所与凭据</span>
         </button>
-        <button id="tab-btn-council" onclick="switchAdminTab('council')" class="py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center space-x-1.5 transition whitespace-nowrap">
+        <button id="tab-btn-council" onclick="switchAdminTab('council')" class="py-2 px-3.5 rounded-lg bg-dark-card/60 text-gray-400 hover:text-gray-200 border border-transparent hover:border-dark-border flex items-center space-x-1.5 transition whitespace-nowrap cursor-pointer shrink-0">
           <i data-lucide="bot" class="w-3.5 h-3.5"></i>
           <span>多智能体席位管理</span>
         </button>
-        <button id="tab-btn-risk" onclick="switchAdminTab('risk')" class="py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center space-x-1.5 transition whitespace-nowrap">
+        <button id="tab-btn-risk" onclick="switchAdminTab('risk')" class="py-2 px-3.5 rounded-lg bg-dark-card/60 text-gray-400 hover:text-gray-200 border border-transparent hover:border-dark-border flex items-center space-x-1.5 transition whitespace-nowrap cursor-pointer shrink-0">
           <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
           <span>17项执行物理风控</span>
         </button>
-        <button id="tab-btn-policy" onclick="switchAdminTab('policy')" class="py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center space-x-1.5 transition whitespace-nowrap">
+        <button id="tab-btn-policy" onclick="switchAdminTab('policy')" class="py-2 px-3.5 rounded-lg bg-dark-card/60 text-gray-400 hover:text-gray-200 border border-transparent hover:border-dark-border flex items-center space-x-1.5 transition whitespace-nowrap cursor-pointer shrink-0">
           <i data-lucide="history" class="w-3.5 h-3.5"></i>
           <span>策略快照与0.5s回滚</span>
         </button>
-        <button id="tab-btn-invites" onclick="switchAdminTab('invites')" class="py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center space-x-1.5 transition whitespace-nowrap">
+        <button id="tab-btn-invites" onclick="switchAdminTab('invites')" class="py-2 px-3.5 rounded-lg bg-dark-card/60 text-gray-400 hover:text-gray-200 border border-transparent hover:border-dark-border flex items-center space-x-1.5 transition whitespace-nowrap cursor-pointer shrink-0">
           <i data-lucide="ticket" class="w-3.5 h-3.5"></i>
           <span>会员邀请码体系</span>
         </button>
-        <button id="tab-btn-account" onclick="switchAdminTab('account')" class="py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center space-x-1.5 transition whitespace-nowrap">
+        <button id="tab-btn-account" onclick="switchAdminTab('account')" class="py-2 px-3.5 rounded-lg bg-dark-card/60 text-gray-400 hover:text-gray-200 border border-transparent hover:border-dark-border flex items-center space-x-1.5 transition whitespace-nowrap cursor-pointer shrink-0">
           <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
           <span>账号安全与改密</span>
         </button>
@@ -1324,17 +1706,21 @@
             tr.id = `row-${sym}`;
             tr.className = 'hover:bg-dark-850/50 transition-colors';
             tr.innerHTML = `
-              <td class="py-2.5 px-3 font-bold text-white flex items-center space-x-2">
-                <span>${sym}</span>
+              <td class="py-2.5 px-3 font-bold text-white flex items-center space-x-2 cursor-pointer" onclick="showKlineForSymbol('${sym}')" title="点击查看专业K线">
+                <span class="hover:text-emerald-400 transition">${sym}</span>
                 <span class="text-[10px] px-1.5 py-0.5 rounded bg-dark-850 text-gray-400 border border-dark-border/50">${item.tier === 'tier_1_bluechip' ? '蓝筹' : '动量'}</span>
               </td>
-              <td class="py-2.5 px-3 font-mono text-emerald-400 font-semibold" id="px-${sym}">$0.00</td>
+              <td class="py-2.5 px-3 font-mono text-emerald-400 font-semibold cursor-pointer" id="px-${sym}" onclick="showKlineForSymbol('${sym}')">$0.00</td>
               <td class="py-2.5 px-3 font-mono" id="calc-${sym}">--</td>
               <td class="py-2.5 px-3 font-mono" id="adx-${sym}">--</td>
               <td class="py-2.5 px-3 font-mono" id="imb-${sym}">--</td>
               <td class="py-2.5 px-3" id="alpha-${sym}"><span class="badge-neutral px-2 py-0.5 rounded text-[11px]">计算中</span></td>
-              <td class="py-2.5 px-3 text-right">
-                <button onclick="removeInstrument('${sym}')" class="text-gray-500 hover:text-red-400 p-1 transition-colors" title="移出池">&times;</button>
+              <td class="py-2.5 px-3 text-right whitespace-nowrap">
+                <button onclick="showKlineForSymbol('${sym}')" class="text-emerald-400 hover:text-emerald-300 font-bold px-2 py-0.5 rounded bg-dark-850 hover:bg-dark-border border border-emerald-500/30 text-[10px] mr-1.5 transition inline-flex items-center space-x-1 cursor-pointer" title="查看该币种专业K线图">
+                  <i data-lucide="trending-up" class="w-3 h-3"></i>
+                  <span>K线</span>
+                </button>
+                <button onclick="removeInstrument('${sym}')" class="text-gray-500 hover:text-red-400 p-1 transition-colors cursor-pointer" title="移出池">&times;</button>
               </td>
             `;
             tbody.appendChild(tr);
@@ -1348,6 +1734,7 @@
         for (const item of universe) {
           loadSymbolFactors(item.name);
         }
+        lucide.createIcons();
       } catch (err) {
         console.error('fetchUniverse error:', err);
       }
@@ -1355,7 +1742,7 @@
 
     async function fetchBatchTickers(universe) {
       try {
-        const res = await fetch(`${API_BASE}/market/tickers`);
+        const res = await fetch(`${API_BASE}/market/tickers?venue=${g_current_market_venue}`);
         if (res.ok) {
           const tickers = await res.json();
           for (const [sym, t] of Object.entries(tickers)) {
@@ -1396,7 +1783,7 @@
 
     async function fetchSingleTicker(sym) {
       try {
-        const res = await fetch(`${API_BASE}/market/ticker/${sym}?venue=okx`);
+        const res = await fetch(`${API_BASE}/market/ticker/${sym}?venue=${g_current_market_venue}`);
         if (res.ok) {
           const t = await res.json();
           updateSymbolPrice(sym, t);
@@ -1460,7 +1847,16 @@
 
         const data = await res.json();
         if (!data.positions || data.positions.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-500">当前全所无在途持仓（资金 100% 安全闲置中）</td></tr>';
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" class="py-6 text-center text-gray-400">
+                <div class="space-y-1.5">
+                  <div class="text-gray-300 font-medium">当前全所无在途持仓（资金 100% 安全闲置待机中）</div>
+                  <div class="text-xs text-gray-500">点击右上角「战绩海报体验」按钮，可一键体验生成机构级量化战绩卡片</div>
+                </div>
+              </td>
+            </tr>
+          `;
           return;
         }
 
@@ -1469,27 +1865,31 @@
 
         for (const p of data.positions) {
           const tr = document.createElement('tr');
-          const isProfit = p.unrealized_pnl_ratio >= 0;
+          const isProfit = (p.unrealized_pnl_ratio || 0) >= 0;
+          const ratioVal = Number(p.unrealized_pnl_ratio) || 0;
+          const shareBtn = `<button onclick="shareThisPosition('${p.symbol}', '${p.side}', '${p.leverage}', ${p.entry_price}, ${p.mark_price}, ${ratioVal}, '${p.venue}')" class="px-2 py-1 rounded bg-emerald-600/80 hover:bg-emerald-500 text-white font-bold text-[10px] shadow transition inline-flex items-center space-x-1 cursor-pointer mr-1" title="生成此单专属收益分享海报"><span>🔗 分享战绩</span></button>`;
+
           const actionBtn = isAdmin
-            ? `<button onclick="emergencyClose('${p.venue}', '${p.symbol}', '${p.side}')" class="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-[11px] px-2.5 py-1 rounded">紧急平仓</button>`
-            : `<span class="text-[11px] text-gray-500">仅超管操作</span>`;
+            ? `<div class="flex items-center justify-end space-x-1">${shareBtn}<button onclick="emergencyClose('${p.venue}', '${p.symbol}', '${p.side}')" class="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-[10px] px-2 py-1 rounded cursor-pointer">平仓</button></div>`
+            : `<div class="flex items-center justify-end">${shareBtn}</div>`;
 
           const pnlText = isAdmin
-            ? `${isProfit ? '+' : ''}$${(p.unrealized_pnl_usd || 0).toFixed(2)} (${(p.unrealized_pnl_ratio * 100).toFixed(1)}%)`
-            : `${isProfit ? '+' : ''}${(p.unrealized_pnl_ratio * 100).toFixed(1)}% <span class="text-[10px] text-gray-500">[${p.status}]</span>`;
+            ? `${isProfit ? '+' : ''}$${(p.unrealized_pnl_usd || 0).toFixed(2)} (${(ratioVal * 100).toFixed(1)}%)`
+            : `${isProfit ? '+' : ''}${(ratioVal * 100).toFixed(1)}% <span class="text-[10px] text-gray-500">[${p.status}]</span>`;
 
           tr.innerHTML = `
             <td class="py-2 px-3 font-bold uppercase ${p.venue === 'okx' ? 'text-emerald-400' : 'text-amber-400'}">${p.venue}</td>
             <td class="py-2 px-3 font-bold text-white">${p.symbol}</td>
             <td class="py-2 px-3 font-bold ${p.side === 'long' ? 'text-emerald-400' : 'text-red-400'}">${p.side === 'long' ? '做多' : '做空'} ${p.leverage}x</td>
             <td class="py-2 px-3 font-mono">${p.size}</td>
-            <td class="py-2 px-3 font-mono">$${p.entry_price.toFixed(2)}</td>
-            <td class="py-2 px-3 font-mono">$${p.mark_price.toFixed(2)}</td>
+            <td class="py-2 px-3 font-mono">$${(p.entry_price || 0).toFixed(2)}</td>
+            <td class="py-2 px-3 font-mono">$${(p.mark_price || 0).toFixed(2)}</td>
             <td class="py-2 px-3 font-bold font-mono ${isProfit ? 'text-emerald-400' : 'text-red-400'}">${pnlText}</td>
             <td class="py-2 px-3 text-right">${actionBtn}</td>
           `;
           tbody.appendChild(tr);
         }
+        lucide.createIcons();
       } catch (err) {
         console.error('fetchPositions error:', err);
       }
@@ -1780,10 +2180,10 @@
         const btn = document.getElementById(`tab-btn-${t}`);
         const panel = document.getElementById(`tab-panel-${t}`);
         if (t === tab) {
-          if (btn) btn.className = 'py-3 border-b-2 border-emerald-400 text-emerald-400 flex items-center space-x-1.5 transition font-bold whitespace-nowrap';
+          if (btn) btn.className = 'py-2 px-3.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm flex items-center space-x-1.5 transition whitespace-nowrap font-bold cursor-pointer shrink-0';
           if (panel) panel.classList.remove('hidden');
         } else {
-          if (btn) btn.className = 'py-3 border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center space-x-1.5 transition whitespace-nowrap';
+          if (btn) btn.className = 'py-2 px-3.5 rounded-lg bg-dark-card/60 text-gray-400 hover:text-gray-200 border border-transparent hover:border-dark-border flex items-center space-x-1.5 transition whitespace-nowrap cursor-pointer shrink-0';
           if (panel) panel.classList.add('hidden');
         }
       });
@@ -1792,7 +2192,10 @@
         loadCredentials();
         loadLLMModels();
       }
-      if (tab === 'council') loadCouncilSeats();
+      if (tab === 'council') {
+        loadCouncilPresets();
+        loadCouncilSeats();
+      }
       if (tab === 'risk') loadRiskConstants();
       if (tab === 'policy') loadPolicyData();
       if (tab === 'invites') loadInviteCodes();
@@ -2534,10 +2937,425 @@
       }
     }
 
+    // =========================================================================
+    // 14. Factor Matrix Guide Modal Logic
+    // =========================================================================
+    function openFactorMatrixGuideModal() {
+      document.getElementById('modal-factor-guide')?.classList.remove('hidden');
+      lucide.createIcons();
+    }
+    function closeFactorMatrixGuideModal() {
+      document.getElementById('modal-factor-guide')?.classList.add('hidden');
+    }
+
+    // =========================================================================
+    // 15. K-Line Candlestick & Venue Management
+    // =========================================================================
+    let g_current_view_mode = 'matrix'; // 'matrix' or 'kline'
+    let g_current_market_venue = localStorage.getItem('el_market_venue') || 'okx';
+    let g_kline_symbol = 'BTC';
+    let g_kline_interval = '5m';
+    let g_tv_chart = null;
+    let g_candle_series = null;
+    let g_volume_series = null;
+    let g_ma7_series = null;
+    let g_ma25_series = null;
+    let g_ma99_series = null;
+    let g_boll_upper_series = null;
+    let g_boll_mid_series = null;
+    let g_boll_lower_series = null;
+    let g_show_ma = true;
+    let g_show_boll = false;
+
+    function switchMarketViewMode(mode) {
+      g_current_view_mode = mode;
+      const matrixView = document.getElementById('container-matrix-view');
+      const klineView = document.getElementById('container-kline-view');
+      const btnMatrix = document.getElementById('btn-view-matrix');
+      const btnKline = document.getElementById('btn-view-kline');
+
+      if (mode === 'kline') {
+        matrixView?.classList.add('hidden');
+        klineView?.classList.remove('hidden');
+        if (btnKline) btnKline.className = 'px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/40 flex items-center space-x-1 transition cursor-pointer';
+        if (btnMatrix) btnMatrix.className = 'px-2.5 py-1 rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-1 transition cursor-pointer';
+        populateKlineSymbolDropdown();
+        setTimeout(() => { loadKlineData(); }, 60);
+      } else {
+        matrixView?.classList.remove('hidden');
+        klineView?.classList.add('hidden');
+        if (btnMatrix) btnMatrix.className = 'px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/40 flex items-center space-x-1 transition cursor-pointer';
+        if (btnKline) btnKline.className = 'px-2.5 py-1 rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-1 transition cursor-pointer';
+      }
+      lucide.createIcons();
+    }
+
+    function changeMarketVenue(venue) {
+      g_current_market_venue = venue;
+      localStorage.setItem('el_market_venue', venue);
+      const sel = document.getElementById('select-market-venue');
+      if (sel) sel.value = venue;
+      if (window.currentUniverse && window.currentUniverse.length > 0) {
+        fetchBatchTickers(window.currentUniverse);
+      }
+      if (g_current_view_mode === 'kline') {
+        loadKlineData();
+      }
+    }
+
+    function populateKlineSymbolDropdown() {
+      const select = document.getElementById('kline-symbol-select');
+      if (!select) return;
+      const symbols = (window.currentUniverse && window.currentUniverse.length > 0)
+        ? window.currentUniverse.map(x => x.name)
+        : ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'ARB', 'SUI', 'LINK', 'ADA', 'UNI'];
+      
+      select.innerHTML = symbols.map(s => `<option value="${s}" ${s === g_kline_symbol ? 'selected' : ''}>${s}/USDT 永续</option>`).join('');
+    }
+
+    function changeKlineSymbol(sym) {
+      g_kline_symbol = sym;
+      loadKlineData();
+    }
+
+    function showKlineForSymbol(sym) {
+      g_kline_symbol = sym;
+      switchMarketViewMode('kline');
+      const select = document.getElementById('kline-symbol-select');
+      if (select) select.value = sym;
+    }
+
+    function setKlineInterval(interval) {
+      g_kline_interval = interval;
+      const tfs = ['5m', '15m', '1h', '4h', '1d', '15d'];
+      tfs.forEach(tf => {
+        const btn = document.getElementById(`tf-btn-${tf}`);
+        if (!btn) return;
+        if (tf === interval) {
+          btn.className = 'px-2 py-0.5 rounded font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        } else {
+          btn.className = 'px-2 py-0.5 rounded text-gray-400 hover:text-white';
+        }
+      });
+      loadKlineData();
+    }
+
+    function toggleKlineIndicator(ind) {
+      if (ind === 'ma') {
+        g_show_ma = document.getElementById('chk-toggle-ma').checked;
+      } else if (ind === 'boll') {
+        g_show_boll = document.getElementById('chk-toggle-boll').checked;
+        const legendBoll = document.getElementById('legend-boll-wrap');
+        if (legendBoll) {
+          if (g_show_boll) legendBoll.classList.remove('hidden');
+          else legendBoll.classList.add('hidden');
+        }
+      }
+      loadKlineData();
+    }
+
+    function initLightweightChart() {
+      const container = document.getElementById('tv-chart-container');
+      if (!container || !window.LightweightCharts) return;
+      if (g_tv_chart) {
+        try { g_tv_chart.remove(); } catch(e){}
+        g_tv_chart = null;
+      }
+
+      g_tv_chart = LightweightCharts.createChart(container, {
+        width: container.clientWidth || 800,
+        height: 420,
+        layout: {
+          background: { color: '#090d14' },
+          textColor: '#94a3b8'
+        },
+        grid: {
+          vertLines: { color: 'rgba(38, 45, 61, 0.4)' },
+          horzLines: { color: 'rgba(38, 45, 61, 0.4)' }
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+          vertLine: { color: '#64748b', width: 1, style: 2 },
+          horzLine: { color: '#64748b', width: 1, style: 2 }
+        },
+        timeScale: {
+          borderColor: '#262d3d',
+          timeVisible: true,
+          secondsVisible: false
+        },
+        rightPriceScale: {
+          borderColor: '#262d3d',
+          autoScale: true
+        }
+      });
+
+      g_candle_series = g_tv_chart.addCandlestickSeries({
+        upColor: '#22c55e',
+        downColor: '#ef4444',
+        borderUpColor: '#22c55e',
+        borderDownColor: '#ef4444',
+        wickUpColor: '#22c55e',
+        wickDownColor: '#ef4444'
+      });
+
+      g_volume_series = g_tv_chart.addHistogramSeries({
+        priceFormat: { type: 'volume' },
+        priceScaleId: '',
+        scaleMargins: { top: 0.82, bottom: 0 }
+      });
+
+      g_ma7_series = g_tv_chart.addLineSeries({ color: '#eab308', lineWidth: 1.5, title: 'MA7' });
+      g_ma25_series = g_tv_chart.addLineSeries({ color: '#c084fc', lineWidth: 1.5, title: 'MA25' });
+      g_ma99_series = g_tv_chart.addLineSeries({ color: '#22d3ee', lineWidth: 1.5, title: 'MA99' });
+
+      g_boll_upper_series = g_tv_chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.5)', lineWidth: 1, lineStyle: 2, title: 'BOLL_UP' });
+      g_boll_mid_series = g_tv_chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.85)', lineWidth: 1, title: 'BOLL_MID' });
+      g_boll_lower_series = g_tv_chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.5)', lineWidth: 1, lineStyle: 2, title: 'BOLL_LOW' });
+
+      window.addEventListener('resize', () => {
+        if (g_tv_chart && container) {
+          g_tv_chart.applyOptions({ width: container.clientWidth });
+        }
+      });
+
+      g_tv_chart.subscribeCrosshairMove(param => {
+        if (!param.time || !param.seriesData.get(g_candle_series)) return;
+        const c = param.seriesData.get(g_candle_series);
+        if (c) {
+          const pxEl = document.getElementById('kline-current-price');
+          if (pxEl) pxEl.innerText = `$${c.close.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+          const m7 = param.seriesData.get(g_ma7_series);
+          const m25 = param.seriesData.get(g_ma25_series);
+          const m99 = param.seriesData.get(g_ma99_series);
+          if (m7) document.getElementById('legend-ma7').innerText = m7.value.toFixed(2);
+          if (m25) document.getElementById('legend-ma25').innerText = m25.value.toFixed(2);
+          if (m99) document.getElementById('legend-ma99').innerText = m99.value.toFixed(2);
+        }
+      });
+    }
+
+    async function loadKlineData() {
+      if (!g_tv_chart) initLightweightChart();
+      const loadingEl = document.getElementById('kline-loading');
+      if (loadingEl) loadingEl.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`${API_BASE}/market/klines?symbol=${g_kline_symbol}&interval=${g_kline_interval}&venue=${g_current_market_venue}&limit=160`);
+        if (!res.ok) throw new Error('K线接口错误');
+        const data = await res.json();
+        if (data.candles && data.candles.length > 0) {
+          g_candle_series.setData(data.candles);
+          if (data.volumes) g_volume_series.setData(data.volumes);
+
+          if (g_show_ma) {
+            if (data.indicators.ma7) g_ma7_series.setData(data.indicators.ma7);
+            if (data.indicators.ma25) g_ma25_series.setData(data.indicators.ma25);
+            if (data.indicators.ma99) g_ma99_series.setData(data.indicators.ma99);
+          } else {
+            g_ma7_series.setData([]);
+            g_ma25_series.setData([]);
+            g_ma99_series.setData([]);
+          }
+
+          if (g_show_boll && data.indicators.boll) {
+            g_boll_upper_series.setData(data.indicators.boll.upper || []);
+            g_boll_mid_series.setData(data.indicators.boll.middle || []);
+            g_boll_lower_series.setData(data.indicators.boll.lower || []);
+          } else {
+            g_boll_upper_series.setData([]);
+            g_boll_mid_series.setData([]);
+            g_boll_lower_series.setData([]);
+          }
+
+          const st = data.stats;
+          const pxEl = document.getElementById('kline-current-price');
+          const chgEl = document.getElementById('kline-change-badge');
+          if (pxEl && st) pxEl.innerText = `$${st.last.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+          if (chgEl && st) {
+            const isUp = st.change_pct >= 0;
+            chgEl.innerText = `${isUp ? '+' : ''}${st.change_pct.toFixed(2)}%`;
+            chgEl.className = `px-1.5 py-0.5 rounded text-[11px] font-bold ${isUp ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`;
+          }
+          if (st) {
+            document.getElementById('kline-high-val').innerText = `$${st.high.toLocaleString('en-US')}`;
+            document.getElementById('kline-low-val').innerText = `$${st.low.toLocaleString('en-US')}`;
+            document.getElementById('kline-vol-val').innerText = `${st.total_volume.toLocaleString('en-US')} ${g_kline_symbol}`;
+          }
+
+          g_tv_chart.timeScale().fitContent();
+        }
+      } catch (err) {
+        console.warn('loadKlineData error:', err);
+      } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+      }
+    }
+
+    // =========================================================================
+    // 16. Position Sharing & Dedicated Showcase Logic
+    // =========================================================================
+    let g_current_share_record = null;
+
+    async function shareThisPosition(symbol, side, leverage, entry, mark, pnlRatio, venue) {
+      try {
+        const res = await fetch(`${API_BASE}/trading/share/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({
+            symbol,
+            side,
+            leverage: String(leverage),
+            entry_price: parseFloat(entry) || 0,
+            mark_price: parseFloat(mark) || 0,
+            unrealized_pnl_ratio: parseFloat(pnlRatio) || 0,
+            venue: venue || 'okx',
+            council_insight: '顺势大势共振，微积分加速度爆发，经 4+1 多智能体投委会 CIO 决议核准执行。'
+          })
+        });
+        if (!res.ok) throw new Error('生成分享失败');
+        const data = await res.json();
+        displayPositionShareModal(data.share);
+      } catch (e) {
+        alert('生成战绩分享失败: ' + e);
+      }
+    }
+
+    function openDemoShareModal() {
+      shareThisPosition('BTC-USDT-SWAP', 'long', '5.0x', 64200.5, 76550.0, 0.2845, 'okx');
+    }
+
+    function displayPositionShareModal(share) {
+      g_current_share_record = share;
+      const aliasEl = document.getElementById('poster-trader-alias');
+      if (aliasEl) aliasEl.innerText = share.trader_alias;
+      const symEl = document.getElementById('poster-symbol');
+      if (symEl) symEl.innerText = share.symbol;
+      const venueEl = document.getElementById('poster-venue');
+      if (venueEl) venueEl.innerText = share.venue;
+      
+      const sideBadge = document.getElementById('poster-side-badge');
+      if (sideBadge) {
+        const isLong = share.side.toLowerCase().includes('long') || share.side.toLowerCase().includes('buy');
+        sideBadge.innerText = `${isLong ? '做多 LONG' : '做空 SHORT'} ${share.leverage}`;
+        sideBadge.className = `px-2.5 py-1 rounded-full font-bold text-xs ${isLong ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40'} font-mono`;
+      }
+
+      const roiEl = document.getElementById('poster-roi-pct');
+      if (roiEl) {
+        roiEl.innerText = share.roi_pct;
+        const isUp = (share.unrealized_pnl_ratio || 0) >= 0;
+        roiEl.className = `text-5xl font-black font-mono tracking-tight ${isUp ? 'text-emerald-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-red-400 drop-shadow-[0_0_15px_rgba(239,68,68,0.4)]'}`;
+      }
+
+      const statusTag = document.getElementById('poster-status-tag');
+      if (statusTag) statusTag.innerText = `★ ${share.status} (动态追踪停损保护)`;
+      const entryEl = document.getElementById('poster-entry-price');
+      if (entryEl) entryEl.innerText = `$${Number(share.entry_price).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      const markEl = document.getElementById('poster-mark-price');
+      if (markEl) markEl.innerText = `$${Number(share.mark_price).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      const insightEl = document.getElementById('poster-council-insight');
+      if (insightEl) insightEl.innerText = share.council_insight;
+      const shareIdEl = document.getElementById('poster-share-id');
+      if (shareIdEl) shareIdEl.innerText = share.share_id;
+      const timeEl = document.getElementById('poster-timestamp');
+      if (timeEl) timeEl.innerText = share.created_at_formatted;
+
+      const origin = window.location.origin + window.location.pathname;
+      const fullUrl = `${origin}?share=${share.share_id}`;
+      const urlInput = document.getElementById('input-share-url');
+      if (urlInput) urlInput.value = fullUrl;
+
+      document.getElementById('modal-position-share')?.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closePositionShareModal() {
+      document.getElementById('modal-position-share')?.classList.add('hidden');
+    }
+
+    function copyShareUrl() {
+      const input = document.getElementById('input-share-url');
+      if (!input) return;
+      input.select();
+      navigator.clipboard.writeText(input.value).then(() => {
+        alert('📋 专属仓位展示链接已复制到剪贴板！');
+      }).catch(() => {
+        alert('复制失败，请手动复制输入框链接');
+      });
+    }
+
+    function copyShareText() {
+      if (!g_current_share_record) return;
+      const s = g_current_share_record;
+      const origin = window.location.origin + window.location.pathname;
+      const fullUrl = `${origin}?share=${s.share_id}`;
+      const text = `🚀【Encrypted Ledger 量化实盘战报】\n` +
+        `• 标的合约: ${s.symbol} (${s.venue})\n` +
+        `• 操盘方向: ${s.side} ${s.leverage}\n` +
+        `• 浮动收益率: ${s.roi_pct} (${s.status})\n` +
+        `• 入场点位: $${s.entry_price} | 最新标记: $${s.mark_price}\n` +
+        `• 投委会论据: ${s.council_insight}\n` +
+        `• 操盘手: ${s.trader_alias}\n` +
+        `• 真实合约验签: ${fullUrl}`;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        alert('💬 社群分享战报文案已复制到剪贴板！');
+      }).catch(() => {
+        alert('复制失败，请手动选择复制');
+      });
+    }
+
+    function openDedicatedShareTab() {
+      if (!g_current_share_record) return;
+      const origin = window.location.origin + window.location.pathname;
+      window.open(`${origin}?share=${g_current_share_record.share_id}`, '_blank');
+    }
+
+    function viewCurrentSharePoster() {
+      if (g_current_share_record) {
+        displayPositionShareModal(g_current_share_record);
+      }
+    }
+
+    function dismissShareShowcase() {
+      const banner = document.getElementById('dedicated-share-showcase-section');
+      if (banner) banner.classList.add('hidden');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    async function checkShareUrlParam() {
+      const params = new URLSearchParams(window.location.search);
+      const shareId = params.get('share');
+      if (!shareId) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/trading/share/${shareId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const s = data.share;
+        if (s) {
+          g_current_share_record = s;
+          const banner = document.getElementById('dedicated-share-showcase-section');
+          const userEl = document.getElementById('shared-user-name');
+          if (banner) banner.classList.remove('hidden');
+          if (userEl) userEl.innerText = s.trader_alias;
+          displayPositionShareModal(s);
+        }
+      } catch (e) {
+        console.warn('checkShareUrlParam error:', e);
+      }
+    }
+
     // Auto Refresh Every 15-30 Seconds
     window.onload = async () => {
+      // Sync venue select from storage
+      const venueSelect = document.getElementById('select-market-venue');
+      if (venueSelect) venueSelect.value = g_current_market_venue;
+
       await initDashboard();
+      await checkShareUrlParam();
       lucide.createIcons();
+
       setInterval(() => {
         if (window.currentUniverse && window.currentUniverse.length > 0) {
           fetchBatchTickers(window.currentUniverse);
@@ -2546,6 +3364,9 @@
         fetchCouncilDebates();
         fetchMacroNews();
         checkCircuitBreaker();
+        if (g_current_view_mode === 'kline') {
+          loadKlineData();
+        }
       }, 15000);
     };
   </script>
