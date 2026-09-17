@@ -5,6 +5,7 @@ native attached TP/SL algo orders (attachAlgoOrds), and Rubik sentiment metrics.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -30,12 +31,13 @@ from app.exchanges.base import (
 
 
 class OKXAdapter(BaseExchangeAdapter):
-    BASE_HOSTS = ["https://www.okx.com", "https://aws.okx.com"]
+    BASE_HOSTS = ["https://www.okx.com"]
 
     def __init__(self, is_demo: Optional[bool] = None):
         if is_demo is None:
             is_demo = (settings.OKX_ENV.lower() == "demo")
         super().__init__(is_demo=is_demo)
+        self._client: Optional[httpx.AsyncClient] = None
         self._capabilities = ExchangeCapabilities(
             venue="okx",
             display_name="OKX 欧易 V5 永续",
@@ -79,6 +81,15 @@ class OKXAdapter(BaseExchangeAdapter):
         mac = hmac.new(secret_key.encode("utf-8"), message.encode("utf-8"), digestmod=hashlib.sha256)
         return base64.b64encode(mac.digest()).decode("utf-8")
 
+    @property
+    def client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(10.0, connect=5.0),
+                limits=httpx.Limits(max_keepalive_connections=50, max_connections=100)
+            )
+        return self._client
+
     async def _request(self, method: str, path: str, params: Optional[Dict[str, Any]] = None, body: Optional[Dict[str, Any]] = None, auth_required: bool = False) -> Any:
         query_str = ""
         if params:
@@ -113,16 +124,16 @@ class OKXAdapter(BaseExchangeAdapter):
         last_err = None
         for base_url in self.BASE_HOSTS:
             url = f"{base_url}{full_path}"
-            try:
-                async with httpx.AsyncClient(timeout=6.0) as client:
+            for attempt in range(2):
+                try:
                     if method.upper() == "GET":
-                        resp = await client.get(url, headers=headers)
+                        resp = await self.client.get(url, headers=headers)
                     elif method.upper() == "POST":
-                        resp = await client.post(url, headers=headers, content=body_str)
+                        resp = await self.client.post(url, headers=headers, content=body_str)
                     elif method.upper() == "DELETE":
-                        resp = await client.request("DELETE", url, headers=headers, content=body_str)
+                        resp = await self.client.request("DELETE", url, headers=headers, content=body_str)
                     else:
-                        resp = await client.request(method, url, headers=headers, content=body_str)
+                        resp = await self.client.request(method, url, headers=headers, content=body_str)
 
                     if resp.status_code != 200:
                         raise ExchangeAPIError("okx", resp.status_code, f"HTTP status error: {resp.text}")
@@ -132,9 +143,11 @@ class OKXAdapter(BaseExchangeAdapter):
                     if code != "0":
                         raise ExchangeAPIError("okx", code, payload.get("msg", "Unknown OKX API Error"))
                     return payload.get("data", [])
-            except Exception as e:
-                last_err = e
-                continue
+                except Exception as e:
+                    last_err = e
+                    if attempt == 0:
+                        await asyncio.sleep(0.15)
+                        continue
         raise last_err or ExchangeAPIError("okx", -1, "All OKX endpoints unreachable")
 
     def _to_inst_id(self, symbol: str) -> str:

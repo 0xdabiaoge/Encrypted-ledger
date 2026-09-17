@@ -37,6 +37,7 @@ class BinanceAdapter(BaseExchangeAdapter):
             is_demo = (settings.BINANCE_ENV.lower() == "demo")
         super().__init__(is_demo=is_demo)
         self.base_url = self.DEMO_URL if self.is_demo else self.LIVE_URL
+        self._client: Optional[httpx.AsyncClient] = None
         self._capabilities = ExchangeCapabilities(
             venue="binance",
             display_name="Binance 币安 USDT-M 合约",
@@ -79,6 +80,15 @@ class BinanceAdapter(BaseExchangeAdapter):
         base = normalize_symbol(symbol)
         return f"{base}USDT"
 
+    @property
+    def client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                timeout=httpx.Timeout(10.0, connect=5.0),
+                limits=httpx.Limits(max_keepalive_connections=50, max_connections=100)
+            )
+        return self._client
+
     async def _request(self, method: str, path: str, params: Optional[Dict[str, Any]] = None, auth_required: bool = False) -> Any:
         params = params or {}
         headers = {
@@ -97,15 +107,15 @@ class BinanceAdapter(BaseExchangeAdapter):
             query_str = "?" + urllib.parse.urlencode(params)
 
         url = f"{self.base_url}{path}{query_str}"
-        async with httpx.AsyncClient(timeout=6.0) as client:
+        try:
             if method.upper() == "GET":
-                resp = await client.get(url, headers=headers)
+                resp = await self.client.get(url, headers=headers)
             elif method.upper() == "POST":
-                resp = await client.post(url, headers=headers)
+                resp = await self.client.post(url, headers=headers)
             elif method.upper() == "DELETE":
-                resp = await client.delete(url, headers=headers)
+                resp = await self.client.delete(url, headers=headers)
             else:
-                resp = await client.request(method, url, headers=headers)
+                resp = await self.client.request(method, url, headers=headers)
 
             if resp.status_code != 200:
                 try:
@@ -115,6 +125,10 @@ class BinanceAdapter(BaseExchangeAdapter):
                     raise ExchangeAPIError("binance", resp.status_code, resp.text, resp.status_code)
 
             return resp.json()
+        except Exception as e:
+            if isinstance(e, ExchangeAPIError):
+                raise
+            raise ExchangeAPIError("binance", -1, f"Binance request failed: {e}")
 
     async def get_ticker(self, symbol: str) -> TickerData:
         inst_id = self._to_inst_id(symbol)

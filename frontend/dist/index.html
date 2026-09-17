@@ -1275,81 +1275,156 @@
     }
 
     // 5. Fetch Universe & Factors
+    window.currentUniverse = [];
+
     async function fetchUniverseAndFactors() {
       try {
         const uRes = await fetch(`${API_BASE}/market/universe`);
         if (!uRes.ok) return;
         const universe = await uRes.json();
+        window.currentUniverse = universe;
         const tbody = document.getElementById('universe-tbody');
-        tbody.innerHTML = '';
+        
+        // Render or sync table rows without flickering
+        const existingRowIds = new Set(Array.from(tbody.querySelectorAll('tr[id^="row-"]')).map(r => r.id));
+        const expectedRowIds = new Set(universe.map(item => `row-${item.name}`));
 
+        // If row counts differ or new items added, re-render skeleton
+        let needRebuild = false;
+        if (existingRowIds.size !== expectedRowIds.size) {
+          needRebuild = true;
+        } else {
+          for (const id of expectedRowIds) {
+            if (!existingRowIds.has(id)) { needRebuild = true; break; }
+          }
+        }
+
+        if (needRebuild) {
+          tbody.innerHTML = '';
+          for (const item of universe) {
+            const sym = item.name;
+            const tr = document.createElement('tr');
+            tr.id = `row-${sym}`;
+            tr.className = 'hover:bg-dark-850/50 transition-colors';
+            tr.innerHTML = `
+              <td class="py-2.5 px-3 font-bold text-white flex items-center space-x-2">
+                <span>${sym}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-dark-850 text-gray-400 border border-dark-border/50">${item.tier === 'tier_1_bluechip' ? '蓝筹' : '动量'}</span>
+              </td>
+              <td class="py-2.5 px-3 font-mono text-emerald-400 font-semibold" id="px-${sym}">$0.00</td>
+              <td class="py-2.5 px-3 font-mono" id="calc-${sym}">--</td>
+              <td class="py-2.5 px-3 font-mono" id="adx-${sym}">--</td>
+              <td class="py-2.5 px-3 font-mono" id="imb-${sym}">--</td>
+              <td class="py-2.5 px-3" id="alpha-${sym}"><span class="badge-neutral px-2 py-0.5 rounded text-[11px]">计算中</span></td>
+              <td class="py-2.5 px-3 text-right">
+                <button onclick="removeInstrument('${sym}')" class="text-gray-500 hover:text-red-400 p-1 transition-colors" title="移出池">&times;</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          }
+        }
+
+        // 1. Instantly update all prices via batch endpoint
+        await fetchBatchTickers(universe);
+
+        // 2. Load calculus and factor indicators for each symbol
         for (const item of universe) {
-          const sym = item.name;
-          const tr = document.createElement('tr');
-          tr.id = `row-${sym}`;
-          tr.innerHTML = `
-            <td class="py-2.5 px-3 font-bold text-white flex items-center space-x-2">
-              <span>${sym}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-dark-850 text-gray-400">${item.tier === 'tier_1_bluechip' ? '蓝筹' : '动量'}</span>
-            </td>
-            <td class="py-2.5 px-3 font-mono" id="px-${sym}">$0.00</td>
-            <td class="py-2.5 px-3 font-mono" id="calc-${sym}">--</td>
-            <td class="py-2.5 px-3 font-mono" id="adx-${sym}">--</td>
-            <td class="py-2.5 px-3 font-mono" id="imb-${sym}">--</td>
-            <td class="py-2.5 px-3" id="alpha-${sym}"><span class="badge-neutral px-2 py-0.5 rounded">计算中</span></td>
-            <td class="py-2.5 px-3 text-right">
-              <button onclick="removeInstrument('${sym}')" class="text-gray-500 hover:text-red-400 p-1" title="移出池">&times;</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-          loadSymbolFactors(sym);
+          loadSymbolFactors(item.name);
         }
       } catch (err) {
         console.error('fetchUniverse error:', err);
       }
     }
 
+    async function fetchBatchTickers(universe) {
+      try {
+        const res = await fetch(`${API_BASE}/market/tickers`);
+        if (res.ok) {
+          const tickers = await res.json();
+          for (const [sym, t] of Object.entries(tickers)) {
+            updateSymbolPrice(sym, t);
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn('Batch tickers fetch failed, falling back to individual:', e);
+      }
+      // Fallback: individual ticker fetch
+      if (universe && universe.length) {
+        for (const item of universe) {
+          fetchSingleTicker(item.name);
+        }
+      }
+    }
+
+    function updateSymbolPrice(sym, t) {
+      const pxEl = document.getElementById(`px-${sym}`);
+      if (!pxEl || !t) return;
+      const rawPx = t.last_price !== undefined ? t.last_price : (t.last !== undefined ? t.last : t.price);
+      if (rawPx !== undefined && rawPx !== null && !isNaN(rawPx)) {
+        const num = Number(rawPx);
+        let formatted = '';
+        if (num >= 1000) {
+          formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else if (num >= 1) {
+          formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+        } else if (num >= 0.0001) {
+          formatted = num.toFixed(4);
+        } else {
+          formatted = num.toFixed(6);
+        }
+        pxEl.innerText = `$${formatted}`;
+      }
+    }
+
+    async function fetchSingleTicker(sym) {
+      try {
+        const res = await fetch(`${API_BASE}/market/ticker/${sym}?venue=okx`);
+        if (res.ok) {
+          const t = await res.json();
+          updateSymbolPrice(sym, t);
+        }
+      } catch (err) {
+        console.warn(`Ticker error for ${sym}:`, err);
+      }
+    }
+
     async function loadSymbolFactors(sym) {
       try {
-        const [tRes, fRes] = await Promise.all([
-          fetch(`${API_BASE}/market/ticker/${sym}?venue=okx`),
-          fetch(`${API_BASE}/market/factors/${sym}`)
-        ]);
+        const fRes = await fetch(`${API_BASE}/market/factors/${sym}`);
+        if (!fRes.ok) return;
+        const res = await fRes.json();
+        const f = res.factors || res;
+        const trend = f.pillar_1_trend || {};
+        const calc = f.calculus || trend;
 
-        if (tRes.ok) {
-          const t = await tRes.json();
-          const pxEl = document.getElementById(`px-${sym}`);
-          if (pxEl) pxEl.innerText = `$${t.last.toFixed(2)}`;
+        const calcEl = document.getElementById(`calc-${sym}`);
+        if (calcEl && calc.velocity !== undefined) {
+          const v = Number(calc.velocity) || 0;
+          const a = Number(calc.acceleration) || 0;
+          calcEl.innerHTML = `<span class="${v >= 0 ? 'text-emerald-400' : 'text-red-400'}">v:${v >= 0 ? '+' : ''}${v.toFixed(3)} a:${a >= 0 ? '+' : ''}${a.toFixed(3)}</span>`;
         }
 
-        if (fRes.ok) {
-          const f = await fRes.json();
-          const calcEl = document.getElementById(`calc-${sym}`);
-          if (calcEl && f.calculus) {
-            const v = f.calculus.velocity;
-            const a = f.calculus.acceleration;
-            calcEl.innerHTML = `<span class="${v >= 0 ? 'text-emerald-400' : 'text-red-400'}">v:${v.toFixed(3)} a:${a.toFixed(3)}</span>`;
-          }
+        const adxEl = document.getElementById(`adx-${sym}`);
+        if (adxEl && trend.adx !== undefined) {
+          const adxVal = Number(trend.adx).toFixed(1);
+          const rsiStr = trend.rsi !== undefined ? ` / RSI:${Number(trend.rsi).toFixed(0)}` : '';
+          adxEl.innerText = `ADX:${adxVal}${rsiStr}`;
+        }
 
-          const adxEl = document.getElementById(`adx-${sym}`);
-          if (adxEl && f.pillar_1_trend) {
-            adxEl.innerText = `ADX:${f.pillar_1_trend.adx.toFixed(1)}`;
-          }
+        const imbEl = document.getElementById(`imb-${sym}`);
+        if (imbEl && f.pillar_4_microstructure && f.pillar_4_microstructure.imbalance_ratio !== undefined) {
+          const imb = Number(f.pillar_4_microstructure.imbalance_ratio) || 0;
+          imbEl.innerHTML = `<span class="${imb >= 0 ? 'text-emerald-400' : 'text-red-400'}">${imb >= 0 ? '+' : ''}${(imb * 100).toFixed(1)}%</span>`;
+        }
 
-          const imbEl = document.getElementById(`imb-${sym}`);
-          if (imbEl && f.pillar_4_microstructure) {
-            const imb = f.pillar_4_microstructure.imbalance_ratio;
-            imbEl.innerHTML = `<span class="${imb >= 0 ? 'text-emerald-400' : 'text-red-400'}">${imb >= 0 ? '+' : ''}${(imb * 100).toFixed(1)}%</span>`;
-          }
-
-          const alphaEl = document.getElementById(`alpha-${sym}`);
-          if (alphaEl) {
-            let badgeClass = 'badge-neutral';
-            let label = '观望';
-            if (f.signal === 'BUY' || f.signal === 'STRONG_BUY') { badgeClass = 'badge-bullish'; label = '做多'; }
-            else if (f.signal === 'SELL' || f.signal === 'STRONG_SELL') { badgeClass = 'badge-bearish'; label = '做空'; }
-            alphaEl.innerHTML = `<span class="${badgeClass} px-2 py-0.5 rounded font-bold">${f.alpha_score.toFixed(0)}分 [${label}]</span>`;
-          }
+        const alphaEl = document.getElementById(`alpha-${sym}`);
+        if (alphaEl && f.alpha_score !== undefined) {
+          let badgeClass = 'badge-neutral';
+          let label = '观望';
+          if (f.signal === 'BUY' || f.signal === 'STRONG_BUY') { badgeClass = 'badge-bullish'; label = '做多'; }
+          else if (f.signal === 'SELL' || f.signal === 'STRONG_SELL') { badgeClass = 'badge-bearish'; label = '做空'; }
+          alphaEl.innerHTML = `<span class="${badgeClass} px-2 py-0.5 rounded font-bold">${Number(f.alpha_score).toFixed(0)}分 [${label}]</span>`;
         }
       } catch (e) {
         console.warn(`Error loading factors for ${sym}:`, e);
@@ -2355,16 +2430,19 @@
       }
     }
 
-    // Auto Refresh Every 30 Seconds
+    // Auto Refresh Every 15-30 Seconds
     window.onload = async () => {
       await initDashboard();
       lucide.createIcons();
       setInterval(() => {
+        if (window.currentUniverse && window.currentUniverse.length > 0) {
+          fetchBatchTickers(window.currentUniverse);
+        }
         fetchPositions();
         fetchCouncilDebates();
         fetchMacroNews();
         checkCircuitBreaker();
-      }, 30000);
+      }, 15000);
     };
   </script>
 </body>

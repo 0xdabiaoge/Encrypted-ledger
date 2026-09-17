@@ -72,7 +72,7 @@ def deploy_code_to_vps():
 
     # 5. Check Git and push to GitHub
     print("Committing and pushing to GitHub...")
-    cmd_git = f"""cd {REMOTE_DIR} && git add . && git commit -m "feat: multi-model pool management, seat-level model assignment, and version badge refinement" || true && git push origin main"""
+    cmd_git = f"""cd {REMOTE_DIR} && git add . && git commit -m "fix: resolve universe instrument price display, connection pooling, and multi-factor parsing" || true && git push origin main"""
     stdin, stdout, stderr = client.exec_command(cmd_git)
     print(stdout.read().decode("utf-8", errors="replace"))
     print(stderr.read().decode("utf-8", errors="replace"))
@@ -85,8 +85,8 @@ def deploy_code_to_vps():
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/health")
     print("Health response:", stdout.read().decode("utf-8", errors="replace"))
 
-    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/llm/models")
-    print("LLM Models response:", stdout.read().decode("utf-8", errors="replace"))
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/market/tickers")
+    print("Market Tickers response:", stdout.read().decode("utf-8", errors="replace")[:120])
 
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/council/seats")
     print("Council seats count:", len(stdout.read().decode("utf-8", errors="replace")))
