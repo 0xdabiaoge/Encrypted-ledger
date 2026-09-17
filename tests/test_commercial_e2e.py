@@ -273,6 +273,36 @@ async def test_commercial_e2e():
             assert r_del_model.status_code == 200
             print(f"    - Cleaned up test model {created_model_id}")
 
+            # 4.5 Strategy Presets & English System Prompt Verification
+            print("  ✓ Testing Institutional Strategy Presets (Conservative, Aggressive, High-Alpha, Balanced)...")
+            r_presets = await client.get("/api/v1/system/council/presets")
+            assert r_presets.status_code == 200
+            presets_data = r_presets.json()
+            assert len(presets_data["presets"]) == 4, f"Expected 4 presets, got {len(presets_data['presets'])}"
+            print(f"    - Verified 4 strategy presets: {[p['name'] for p in presets_data['presets']]}")
+
+            # Apply 'conservative' preset
+            r_apply_cons = await client.post("/api/v1/system/council/presets/conservative/apply", headers=admin_headers)
+            assert r_apply_cons.status_code == 200
+            cons_seats = r_apply_cons.json()["seats"]
+            cons_trend = next(s for s in cons_seats if s["id"] == "seat_trend")
+            assert "[ROLE]: Conservative Trend" in cons_trend["prompt"]
+            assert "# [角色定位]" in cons_trend["prompt"]
+            print(f"    - Applied 'conservative' preset: seat_trend prompt verified with English instructions + Chinese comments")
+
+            # Apply 'high_alpha' preset
+            r_apply_alpha = await client.post("/api/v1/system/council/presets/high_alpha/apply", headers=admin_headers)
+            assert r_apply_alpha.status_code == 200
+            alpha_seats = r_apply_alpha.json()["seats"]
+            alpha_cio = next(s for s in alpha_seats if s["id"] == "seat_cio")
+            assert ">= 3.5" in alpha_cio["prompt"]
+            print(f"    - Applied 'high_alpha' preset: seat_cio R:R >= 3.5 constraint verified")
+
+            # Restore 'balanced' default preset
+            r_restore = await client.post("/api/v1/system/council/presets/balanced/apply", headers=admin_headers)
+            assert r_restore.status_code == 200
+            print(f"    - Restored 'balanced' strategy preset")
+
             # ------------------------------------------------------------------
             # 5. Dual-Tier Telegram Bot Engine & Interactive Command Routing
             # ------------------------------------------------------------------

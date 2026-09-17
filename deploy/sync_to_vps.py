@@ -72,13 +72,14 @@ def deploy_code_to_vps():
 
     # 5. Check Git and push to GitHub
     print("Committing and pushing to GitHub...")
-    cmd_git = f"""cd {REMOTE_DIR} && git add . && git commit -m "fix: resolve universe instrument price display, connection pooling, and multi-factor parsing" || true && git push origin main"""
+    commit_msg = sys.argv[1] if len(sys.argv) > 1 else "feat: institutional multi-agent council strategy presets, bilingual English-Chinese prompt engineering, and one-click template hub"
+    cmd_git = f"""cd {REMOTE_DIR} && git add . && git commit -m "{commit_msg}" || true && git push origin main"""
     stdin, stdout, stderr = client.exec_command(cmd_git)
     print(stdout.read().decode("utf-8", errors="replace"))
     print(stderr.read().decode("utf-8", errors="replace"))
     stdout.channel.recv_exit_status()
 
-    # 6. Verify Health and HTML content
+    # 6. Verify Health, Council Presets, and HTML content
     print("Waiting 5s for application startup...")
     time.sleep(5)
     print("Verifying live deployment on VPS...")
@@ -88,11 +89,11 @@ def deploy_code_to_vps():
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/market/tickers")
     print("Market Tickers response:", stdout.read().decode("utf-8", errors="replace")[:120])
 
-    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/council/seats")
-    print("Council seats count:", len(stdout.read().decode("utf-8", errors="replace")))
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/council/presets")
+    print("Council presets response:", stdout.read().decode("utf-8", errors="replace")[:200])
 
-    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/ | grep '>v2.0<' | head -n 1")
-    print("Version badge in live HTML:", stdout.read().decode("utf-8", errors="replace").strip())
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/council/seats")
+    print("Council seats length:", len(stdout.read().decode("utf-8", errors="replace")))
 
     client.close()
     print("Sync, deployment, and push completed successfully!")

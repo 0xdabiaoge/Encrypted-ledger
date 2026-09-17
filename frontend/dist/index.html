@@ -722,16 +722,33 @@
 
         <!-- Tab 2: Multi-Agent Council Seats Management -->
         <div id="tab-panel-council" class="hidden space-y-5">
-          <div class="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg text-purple-300 text-xs flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <span class="text-base">🤖</span>
+          <!-- Strategy Preset Selector Banner -->
+          <div class="p-4 bg-dark-850 border border-dark-border rounded-xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="flex items-start space-x-3">
+              <span class="text-2xl mt-0.5">🏛️</span>
               <div>
-                <b>对冲基金 4+1 多智能体席位矩阵:</b> 顺势操盘官、动能进攻官、数理量化官与宏观风控官分别执行专属领域推演，最后由 CIO 终审裁决。
+                <div class="flex items-center space-x-2.5">
+                  <span class="font-bold text-white text-sm">4+1 多智能体投委会策略模板决策中枢</span>
+                  <span id="active-preset-badge" class="text-[11px] px-2.5 py-0.5 rounded-full font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">平衡机构量化型</span>
+                </div>
+                <div id="active-preset-desc" class="text-xs text-gray-400 mt-1 max-w-2xl">
+                  顺势波段、动能微积分、盘口微观结构与宏观风控四权分立共振，兼顾胜率与盈亏比。提示词采用英文高维推理逻辑与中文双语注释。
+                </div>
               </div>
             </div>
-            <button onclick="resetCouncilSeats()" class="px-3 py-1 rounded bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/30 font-bold transition">
-              一键重置官方模板
-            </button>
+
+            <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+              <select id="select-strategy-preset" onchange="previewPresetDesc()" class="bg-dark-card border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white font-medium focus:border-brand-500 outline-none">
+                <option value="balanced">⚖️ 平衡机构量化型 (Balanced Standard)</option>
+                <option value="conservative">🛡️ 稳健价值保本型 (Conservative Steady)</option>
+                <option value="aggressive">⚡ 激进动能突击型 (Aggressive Momentum)</option>
+                <option value="high_alpha">🎯 高风险高回报猎手 (High-Alpha Degen)</option>
+              </select>
+              <button onclick="applySelectedPreset()" class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md transition flex items-center space-x-1.5 whitespace-nowrap">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                <span>一键套用模板</span>
+              </button>
+            </div>
           </div>
 
           <div id="council-seats-list" class="space-y-4">
@@ -2034,9 +2051,84 @@
       }
     }
 
-    // Tab 2: Multi-Agent Council Seats Management
+    // Tab 2: Multi-Agent Council Seats & Strategy Presets Management
+    let g_council_presets = [];
+    let g_active_preset = 'balanced';
+
+    async function loadCouncilPresets() {
+      try {
+        const res = await fetch(`${API_BASE}/system/council/presets`);
+        if (!res.ok) return;
+        const data = await res.json();
+        g_council_presets = data.presets || [];
+        g_active_preset = data.active_preset || 'balanced';
+
+        const select = document.getElementById('select-strategy-preset');
+        if (select && g_council_presets.length) {
+          select.innerHTML = g_council_presets.map(p => 
+            `<option value="${p.id}" ${p.id === g_active_preset ? 'selected' : ''}>${p.name}</option>`
+          ).join('');
+        }
+        updatePresetDisplay(g_active_preset);
+      } catch (e) {
+        console.warn('loadCouncilPresets error:', e);
+      }
+    }
+
+    function updatePresetDisplay(presetId) {
+      const p = g_council_presets.find(x => x.id === presetId);
+      if (!p) return;
+      const badge = document.getElementById('active-preset-badge');
+      const desc = document.getElementById('active-preset-desc');
+      if (badge) {
+        badge.innerText = p.name.split(' (')[0];
+        const colorMap = {
+          blue: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+          emerald: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+          amber: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+          purple: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+        };
+        badge.className = `text-[11px] px-2.5 py-0.5 rounded-full font-mono font-bold border ${colorMap[p.badge_color] || colorMap.emerald}`;
+      }
+      if (desc) {
+        desc.innerHTML = `<span>${p.description}</span> <span class="ml-2 font-mono text-gray-300 font-semibold">[杠杆: ${p.leverage_range} | 最低R:R: ${p.min_rr} | 置信度门槛: ${p.confidence_threshold}]</span>`;
+      }
+    }
+
+    function previewPresetDesc() {
+      const select = document.getElementById('select-strategy-preset');
+      if (select) updatePresetDisplay(select.value);
+    }
+
+    async function applySelectedPreset() {
+      const select = document.getElementById('select-strategy-preset');
+      if (!select) return;
+      const presetId = select.value;
+      const p = g_council_presets.find(x => x.id === presetId);
+      const pName = p ? p.name : presetId;
+
+      if (!confirm(`确认要将投委会 4+1 席位全套切换为「${pName}」吗？\n各席位自定义绑定的智能模型池设置将被安全保留。`)) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/system/council/presets/${presetId}/apply`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('套用策略模板失败: ' + (data.detail || '未知错误'));
+        alert(`✅ 策略模板「${pName}」已成功一键套用生效！\n所有席位系统指令已升级为高维英文推理逻辑与中文双语注释。`);
+        g_active_preset = presetId;
+        updatePresetDisplay(presetId);
+        loadCouncilSeats();
+      } catch (e) {
+        alert('套用请求异常: ' + e);
+      }
+    }
+
     async function loadCouncilSeats() {
       try {
+        await loadCouncilPresets();
+
         if (!g_llm_models || !g_llm_models.length) {
           const mRes = await fetch(`${API_BASE}/system/llm/models`, { headers: getAuthHeaders() });
           if (mRes.ok) g_llm_models = await mRes.json();
@@ -2050,7 +2142,7 @@
 
         seats.forEach(s => {
           const card = document.createElement('div');
-          card.className = 'border border-dark-border rounded-lg p-4 bg-dark-850/50 space-y-3';
+          card.className = 'border border-dark-border rounded-xl p-4 bg-dark-850/50 space-y-3 shadow-md hover:border-dark-border/80 transition-all';
           const assignedModel = g_llm_models.find(m => m.id === s.model_id);
           const modelBadge = assignedModel ? `🤖 ${assignedModel.name}` : '⚙️ 默认基础模型/确定性引擎';
 
@@ -2060,50 +2152,61 @@
           ].join('');
 
           card.innerHTML = `
-            <div class="flex items-center justify-between border-b border-dark-border/60 pb-2">
-              <div class="flex items-center space-x-2">
-                <span class="text-xl">${s.avatar || '🤖'}</span>
+            <div class="flex items-center justify-between border-b border-dark-border/60 pb-2.5">
+              <div class="flex items-center space-x-2.5">
+                <span class="text-2xl">${s.avatar || '🤖'}</span>
                 <div>
-                  <span class="font-bold text-white text-sm">${s.name}</span>
-                  <span class="text-[11px] text-gray-400 ml-2 font-mono">(${s.role_title})</span>
+                  <div class="flex items-center space-x-2">
+                    <span class="font-bold text-white text-sm">${s.name}</span>
+                    <span class="text-[11px] text-gray-400 font-mono">(${s.role_title})</span>
+                  </div>
+                  <div class="text-[11px] text-gray-400 mt-0.5">${s.description}</div>
                 </div>
               </div>
-              <div class="flex items-center space-x-3">
-                <span class="text-[11px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">${modelBadge}</span>
+              <div class="flex items-center space-x-2.5">
+                <span class="text-[11px] px-2.5 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono font-bold">${modelBadge}</span>
                 <span class="text-[11px] text-gray-400">权重: <b class="text-emerald-400 font-mono">${s.weight}</b></span>
                 <span class="text-[11px] text-gray-400">温度: <b class="text-purple-400 font-mono">${s.temperature}</b></span>
-                <span class="text-xs px-2 py-0.5 rounded ${s.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gray-500/20 text-gray-400'}">
+                <span class="text-xs px-2 py-0.5 rounded font-bold ${s.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gray-500/20 text-gray-400'}">
                   ${s.enabled ? '已启用' : '已停用'}
                 </span>
               </div>
             </div>
 
-            <div class="text-[11px] text-gray-400">${s.description}</div>
-
             <div>
-              <label class="block text-gray-400 mb-1 text-[11px]">专属提示词 (System Prompt 决策哲学与纪律插槽)</label>
-              <textarea id="prompt-${s.id}" rows="4" class="w-full bg-dark-card border border-dark-border rounded p-2.5 text-white font-mono text-[11px] leading-relaxed">${s.prompt}</textarea>
+              <div class="flex items-center justify-between mb-1">
+                <label class="block text-gray-300 text-[11px] font-bold">
+                  高维推理系统提示词 (English System Instruction with Chinese Annotations)
+                </label>
+                <span class="text-[10px] text-gray-500 font-mono">支持中英双语 / 兼容顶级推理大模型</span>
+              </div>
+              <textarea id="prompt-${s.id}" rows="8" class="w-full bg-dark-card border border-dark-border rounded-lg p-3 text-white font-mono text-xs leading-relaxed focus:border-brand-500 outline-none">${s.prompt}</textarea>
             </div>
 
-            <div class="flex items-center justify-between pt-1">
-              <div class="flex items-center space-x-3">
-                <label class="flex items-center space-x-1 text-gray-300">
-                  <input type="checkbox" id="enable-${s.id}" ${s.enabled ? 'checked' : ''} class="rounded text-emerald-500" />
-                  <span>启用该席位</span>
+            <div class="flex flex-wrap items-center justify-between pt-1 gap-2">
+              <div class="flex flex-wrap items-center space-x-3">
+                <label class="flex items-center space-x-1 text-gray-300 cursor-pointer text-xs">
+                  <input type="checkbox" id="enable-${s.id}" ${s.enabled ? 'checked' : ''} class="rounded text-emerald-500 focus:ring-0" />
+                  <span>启用席位</span>
                 </label>
                 <div class="flex items-center space-x-1">
-                  <span class="text-gray-400">权重:</span>
-                  <input type="number" id="weight-${s.id}" step="0.05" min="0" max="1" value="${s.weight}" class="w-16 bg-dark-card border border-dark-border rounded px-2 py-0.5 text-white font-mono text-xs" />
+                  <span class="text-gray-400 text-xs">权重:</span>
+                  <input type="number" id="weight-${s.id}" step="0.05" min="0" max="1" value="${s.weight}" class="w-16 bg-dark-card border border-dark-border rounded px-2 py-1 text-white font-mono text-xs text-center" />
                 </div>
-                <div class="flex items-center space-x-1 ml-2">
-                  <span class="text-gray-400">分配模型:</span>
-                  <select id="model-${s.id}" class="bg-dark-card border border-dark-border rounded px-2 py-1 text-white font-mono text-xs">
+                <div class="flex items-center space-x-1">
+                  <span class="text-gray-400 text-xs">温度:</span>
+                  <input type="number" id="temp-${s.id}" step="0.05" min="0" max="1" value="${s.temperature}" class="w-16 bg-dark-card border border-dark-border rounded px-2 py-1 text-white font-mono text-xs text-center" />
+                </div>
+                <div class="flex items-center space-x-1 ml-1">
+                  <span class="text-gray-400 text-xs">分配模型:</span>
+                  <select id="model-${s.id}" class="bg-dark-card border border-dark-border rounded-lg px-2.5 py-1 text-white font-mono text-xs outline-none focus:border-brand-500">
                     ${modelOptions}
                   </select>
                 </div>
               </div>
-              <button onclick="saveCouncilSeat('${s.id}')" class="px-3 py-1 rounded bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs">
-                保存此席位
+              <button onclick="saveCouncilSeat('${s.id}')" class="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow transition flex items-center space-x-1">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>保存此席位</span>
               </button>
             </div>
           `;
@@ -2118,17 +2221,18 @@
       const prompt = document.getElementById(`prompt-${seatId}`).value;
       const enabled = document.getElementById(`enable-${seatId}`).checked;
       const weight = parseFloat(document.getElementById(`weight-${seatId}`).value) || 0.25;
+      const temperature = parseFloat(document.getElementById(`temp-${seatId}`).value) || 0.1;
       const model_id = document.getElementById(`model-${seatId}`).value;
 
       try {
         const res = await fetch(`${API_BASE}/system/council/seats/${seatId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify({ prompt, enabled, weight, model_id })
+          body: JSON.stringify({ prompt, enabled, weight, temperature, model_id })
         });
         const data = await res.json();
         if (!res.ok) return alert('更新失败: ' + (data.detail || '未知错误'));
-        alert(`✅ 席位 ${seatId} 已保存生效！`);
+        alert(`✅ 席位 [${seatId}] 配置已保存生效！`);
         loadCouncilSeats();
       } catch (e) {
         alert('保存席位请求异常: ' + e);

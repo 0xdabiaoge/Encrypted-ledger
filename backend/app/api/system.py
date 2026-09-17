@@ -157,11 +157,35 @@ async def update_council_seat(seat_id: str, req: UpdateSeatRequest):
     return {"status": "success", "message": f"席位 {seat_id} 配置已更新生效"}
 
 
+@router.get("/council/presets")
+async def get_council_presets():
+    """List available institutional hedge fund strategy presets with active status."""
+    return {
+        "presets": council_policy_manager.get_presets(),
+        "active_preset": council_policy_manager.get_active_preset()
+    }
+
+
+@router.post("/council/presets/{preset_id}/apply", dependencies=[Depends(verify_admin_session)])
+async def apply_council_preset(preset_id: str):
+    """Apply a hedge fund strategy preset to all 5 council seats while keeping model assignments."""
+    try:
+        seats = council_policy_manager.apply_preset(preset_id)
+        return {
+            "status": "success",
+            "message": f"策略模板 [{preset_id}] 已一键套用至投委会 5 大席位！",
+            "active_preset": preset_id,
+            "seats": seats
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/council/reset", dependencies=[Depends(verify_admin_session)])
 async def reset_council_seats():
     """Reset all council seats to default institutional hedge fund settings."""
     seats = council_policy_manager.reset_to_defaults()
-    return {"status": "success", "message": "投委会 4+1 席位已全部重置为官方默认模板", "seats": seats}
+    return {"status": "success", "message": "投委会 4+1 席位已全部重置为平衡机构官方默认模板", "seats": seats}
 
 
 @router.get("/council/debates")
