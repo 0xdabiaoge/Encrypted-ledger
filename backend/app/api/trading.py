@@ -226,8 +226,8 @@ async def trigger_simulated_trade_cycle(req: Optional[SimulateCycleRequest] = No
 
     sym = (req.symbol or "BTC").upper() if req else "BTC"
     
-    # Execute trade cycle
-    results = await orchestrator.execute_trade_cycle()
+    # Execute trade cycle specifically for requested symbol
+    results = await orchestrator.execute_trade_cycle(target_symbol=sym)
     debates = council_desk.get_latest_debate_history(limit=5)
     matched_debate = next((d for d in reversed(debates) if d.get("symbol") == sym), debates[-1] if debates else None)
 

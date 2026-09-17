@@ -9,6 +9,7 @@ Simulates a Tier-1 quantitative hedge fund investment committee:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -297,8 +298,8 @@ class InvestmentCouncilDesk:
 
         seats_config = {s["id"]: s for s in council_policy_manager.get_seats()}
 
-        # 1.1 For seats with assigned LLM models, execute independent LLM reasoning
-        for op in seat_opinions:
+        # 1.1 For seats with assigned LLM models, execute independent LLM reasoning in parallel
+        async def _run_seat_llm(op):
             seat_id = op.get("seat_id")
             s_cfg = seats_config.get(seat_id, {})
             model_id = s_cfg.get("model_id")
@@ -334,6 +335,8 @@ class InvestmentCouncilDesk:
                     op["llm_model_used"] = model_id
                 except Exception as e:
                     logger.warning(f"Seat {seat_id} LLM reasoning with model {model_id} failed ({e}), keeping algorithmic baseline.")
+
+        await asyncio.gather(*[_run_seat_llm(op) for op in seat_opinions])
 
         # 2. Check if LLM is configured for CIO arbitration
         cio_cfg = council_policy_manager.get_seat("seat_cio") or {}

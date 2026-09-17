@@ -40,7 +40,7 @@ class TradingOrchestrator:
         self.is_running = False
         self._task: Optional[asyncio.Task] = None
 
-    async def execute_trade_cycle(self) -> Dict[str, Any]:
+    async def execute_trade_cycle(self, target_symbol: Optional[str] = None) -> Dict[str, Any]:
         """Executes one complete institutional trading cycle across OKX & Binance."""
         start_ts = time.time()
         tz_bj = datetime.timezone(datetime.timedelta(hours=8))
@@ -111,6 +111,8 @@ class TradingOrchestrator:
 
         # 5. Scan Trading Universe
         universe = universe_manager.load_instruments()
+        if target_symbol:
+            universe = [inst for inst in universe if inst.get("name", "").upper() == target_symbol.upper()]
         cycle_decisions = []
 
         for inst in universe:
