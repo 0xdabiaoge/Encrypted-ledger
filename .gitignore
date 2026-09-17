@@ -8,6 +8,8 @@ data/encrypted_ledger.db*
 data/circuit_breaker.json
 data/active_policy_snapshot.json
 data/news_sentiment.json
+data/credentials_store.json
+data/paper_positions.json
 data/policy_archives/*.json
 
 # Logs
