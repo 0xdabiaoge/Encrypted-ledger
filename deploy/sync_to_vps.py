@@ -3,6 +3,7 @@ import os
 import sys
 import tarfile
 import tempfile
+import time
 from pathlib import Path
 import paramiko
 
@@ -62,26 +63,29 @@ def deploy_code_to_vps():
     stdin, stdout, stderr = client.exec_command(f"cd {REMOTE_DIR} && tar -xzf deploy.tar.gz && rm -f deploy.tar.gz && chmod +x deploy.sh deploy/*.sh")
     stdout.channel.recv_exit_status()
 
-    # 4. Restart Docker container
-    print("Restarting Docker Compose service on VPS...")
-    stdin, stdout, stderr = client.exec_command(f"cd {REMOTE_DIR} && docker compose restart")
+    # 4. Rebuild & Restart Docker container
+    print("Rebuilding & Starting Docker Compose service on VPS...")
+    stdin, stdout, stderr = client.exec_command(f"cd {REMOTE_DIR} && docker compose up -d --build")
     print(stdout.read().decode("utf-8", errors="replace"))
+    print(stderr.read().decode("utf-8", errors="replace"))
     stdout.channel.recv_exit_status()
 
     # 5. Check Git and push to GitHub
     print("Committing and pushing to GitHub...")
-    cmd_git = f"""cd {REMOTE_DIR} && git add . && git commit -m "feat(ui): add prominent admin login and settings console" || true && git push origin main"""
+    cmd_git = f"""cd {REMOTE_DIR} && git add . && git commit -m "feat(deploy): mount code volumes and deploy admin console" || true && git push origin main"""
     stdin, stdout, stderr = client.exec_command(cmd_git)
     print(stdout.read().decode("utf-8", errors="replace"))
     print(stderr.read().decode("utf-8", errors="replace"))
     stdout.channel.recv_exit_status()
 
     # 6. Verify Health and HTML content
+    print("Waiting 5s for application startup...")
+    time.sleep(5)
     print("Verifying live deployment on VPS...")
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/health")
     print("Health response:", stdout.read().decode("utf-8", errors="replace"))
 
-    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/ | grep -o '管理员登录'")
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/ | grep '管理员登录' | head -n 1")
     print("Admin login presence in HTML:", stdout.read().decode("utf-8", errors="replace").strip())
 
     client.close()

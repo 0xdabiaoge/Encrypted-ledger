@@ -20,6 +20,8 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
+      - ./backend:/app/backend
+      - ./frontend/dist:/app/frontend/dist
     logging:
       driver: "json-file"
       options:
