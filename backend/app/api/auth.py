@@ -83,6 +83,11 @@ async def setup_admin(req: SetupAdminRequest, session=Depends(get_db_session)):
     return {"status": "success", "message": "管理员账号创建成功", "access_token": token}
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
 async def verify_admin_session(request: Request) -> dict:
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
@@ -92,3 +97,31 @@ async def verify_admin_session(request: Request) -> dict:
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="无效或已过期的登录令牌")
     return payload
+
+
+@router.post("/change-password")
+async def change_password(
+    req: ChangePasswordRequest,
+    session=Depends(get_db_session),
+    admin_payload=Depends(verify_admin_session)
+):
+    username = admin_payload.get("sub")
+    stmt = select(AdminUser).where(AdminUser.username == username)
+    res = await session.execute(stmt)
+    user = res.scalar_one_or_none()
+    if not user or not verify_password(req.old_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="原密码验证错误")
+
+    user.password_hash = hash_password(req.new_password)
+    await session.commit()
+    return {"status": "success", "message": "管理员密码修改成功"}
+
+
+@router.get("/me")
+async def get_current_admin(admin_payload=Depends(verify_admin_session)):
+    return {
+        "status": "success",
+        "username": admin_payload.get("sub"),
+        "role": admin_payload.get("role", "admin")
+    }
+

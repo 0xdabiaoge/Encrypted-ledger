@@ -50,7 +50,8 @@ def deploy_code_to_vps():
     # 2. Upload via SFTP
     print(f"Uploading archive ({os.path.getsize(tar_tmp.name) / 1024:.1f} KB) to {REMOTE_DIR}...")
     sftp = client.open_sftp()
-    client.exec_command(f"mkdir -p {REMOTE_DIR}")
+    stdin, stdout, stderr = client.exec_command(f"mkdir -p {REMOTE_DIR}")
+    stdout.channel.recv_exit_status()
     remote_tar = f"{REMOTE_DIR}/deploy.tar.gz"
     sftp.put(tar_tmp.name, remote_tar)
     sftp.close()
@@ -58,15 +59,33 @@ def deploy_code_to_vps():
 
     # 3. Extract and set permissions
     print("Extracting on VPS...")
-    client.exec_command(f"cd {REMOTE_DIR} && tar -xzf deploy.tar.gz && rm -f deploy.tar.gz && chmod +x deploy.sh deploy/*.sh")
+    stdin, stdout, stderr = client.exec_command(f"cd {REMOTE_DIR} && tar -xzf deploy.tar.gz && rm -f deploy.tar.gz && chmod +x deploy.sh deploy/*.sh")
+    stdout.channel.recv_exit_status()
 
-    # 4. Check git status and remote
-    cmd_git = f"""cd {REMOTE_DIR} && git init && git config user.name "0xdabiaoge" && git config user.email "dabiaoge@users.noreply.github.com" && git remote remove origin 2>/dev/null || true; git remote add origin git@github.com:0xdabiaoge/Encrypted-ledger.git; git status -s"""
+    # 4. Restart Docker container
+    print("Restarting Docker Compose service on VPS...")
+    stdin, stdout, stderr = client.exec_command(f"cd {REMOTE_DIR} && docker compose restart")
+    print(stdout.read().decode("utf-8", errors="replace"))
+    stdout.channel.recv_exit_status()
+
+    # 5. Check Git and push to GitHub
+    print("Committing and pushing to GitHub...")
+    cmd_git = f"""cd {REMOTE_DIR} && git add . && git commit -m "feat(ui): add prominent admin login and settings console" || true && git push origin main"""
     stdin, stdout, stderr = client.exec_command(cmd_git)
-    print("Git status on VPS:\n" + stdout.read().decode("utf-8"))
+    print(stdout.read().decode("utf-8", errors="replace"))
+    print(stderr.read().decode("utf-8", errors="replace"))
+    stdout.channel.recv_exit_status()
+
+    # 6. Verify Health and HTML content
+    print("Verifying live deployment on VPS...")
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/system/health")
+    print("Health response:", stdout.read().decode("utf-8", errors="replace"))
+
+    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/ | grep -o '管理员登录'")
+    print("Admin login presence in HTML:", stdout.read().decode("utf-8", errors="replace").strip())
 
     client.close()
-    print("Code successfully synchronized to VPS /opt/encrypted-ledger!")
+    print("Sync, deployment, and push completed successfully!")
 
 
 if __name__ == "__main__":
@@ -75,5 +94,3 @@ if __name__ == "__main__":
         print(get_vps_ssh_key())
     else:
         deploy_code_to_vps()
-        print("\nVPS SSH PUBLIC KEY FOR GITHUB:")
-        print(get_vps_ssh_key())

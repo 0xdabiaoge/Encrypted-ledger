@@ -36,33 +36,82 @@ async def health_check():
     }
 
 
-@router.get("/runtime", dependencies=[Depends(verify_admin_session)])
-async def get_runtime_status():
-    """Reports dual-venue configured modes (demo vs live) and credentials readiness."""
-    okx_ready = bool(
-        (settings.OKX_ENV == "demo" and settings.OKX_DEMO_API_KEY) or
-        (settings.OKX_ENV == "live" and settings.OKX_LIVE_API_KEY)
-    )
-    binance_ready = bool(
-        (settings.BINANCE_ENV == "demo" and settings.BINANCE_DEMO_API_KEY) or
-        (settings.BINANCE_ENV == "live" and settings.BINANCE_LIVE_API_KEY)
-    )
+class UpdateCredentialsRequest(BaseModel):
+    okx_env: Optional[str] = None
+    okx_api_key: Optional[str] = None
+    okx_secret_key: Optional[str] = None
+    okx_passphrase: Optional[str] = None
+    binance_env: Optional[str] = None
+    binance_api_key: Optional[str] = None
+    binance_secret_key: Optional[str] = None
+    llm_api_key: Optional[str] = None
+    llm_base_url: Optional[str] = None
+    llm_model: Optional[str] = None
 
+
+@router.post("/credentials", dependencies=[Depends(verify_admin_session)])
+async def update_credentials(req: UpdateCredentialsRequest):
+    """Update OKX, Binance, and LLM credentials dynamically."""
+    if req.okx_env:
+        settings.OKX_ENV = req.okx_env.lower()
+    if req.okx_api_key is not None:
+        if settings.OKX_ENV == "demo":
+            settings.OKX_DEMO_API_KEY = req.okx_api_key
+        else:
+            settings.OKX_LIVE_API_KEY = req.okx_api_key
+    if req.okx_secret_key is not None:
+        if settings.OKX_ENV == "demo":
+            settings.OKX_DEMO_SECRET_KEY = req.okx_secret_key
+        else:
+            settings.OKX_LIVE_SECRET_KEY = req.okx_secret_key
+    if req.okx_passphrase is not None:
+        if settings.OKX_ENV == "demo":
+            settings.OKX_DEMO_PASSPHRASE = req.okx_passphrase
+        else:
+            settings.OKX_LIVE_PASSPHRASE = req.okx_passphrase
+
+    if req.binance_env:
+        settings.BINANCE_ENV = req.binance_env.lower()
+    if req.binance_api_key is not None:
+        if settings.BINANCE_ENV == "demo":
+            settings.BINANCE_DEMO_API_KEY = req.binance_api_key
+        else:
+            settings.BINANCE_LIVE_API_KEY = req.binance_api_key
+    if req.binance_secret_key is not None:
+        if settings.BINANCE_ENV == "demo":
+            settings.BINANCE_DEMO_SECRET_KEY = req.binance_secret_key
+        else:
+            settings.BINANCE_LIVE_SECRET_KEY = req.binance_secret_key
+
+    if req.llm_api_key is not None:
+        settings.LLM_API_KEY = req.llm_api_key
+    if req.llm_base_url is not None:
+        settings.LLM_BASE_URL = req.llm_base_url
+    if req.llm_model is not None:
+        settings.LLM_MODEL = req.llm_model
+
+    return {"status": "success", "message": "API 凭证已动态更新生效"}
+
+
+def mask_secret(s: str) -> str:
+    if not s:
+        return ""
+    if len(s) < 8:
+        return "******"
+    return s[:3] + "..." + s[-3:]
+
+
+@router.get("/credentials", dependencies=[Depends(verify_admin_session)])
+async def get_credentials():
+    """Retrieve masked credentials overview for admin console."""
     return {
-        "okx": {
-            "environment": settings.OKX_ENV,
-            "status": "READY" if okx_ready else "DEMO_UNCONFIGURED",
-            "is_demo": settings.OKX_ENV == "demo"
-        },
-        "binance": {
-            "environment": settings.BINANCE_ENV,
-            "status": "READY" if binance_ready else "DEMO_UNCONFIGURED",
-            "is_demo": settings.BINANCE_ENV == "demo"
-        },
-        "routing": {
-            "preferred_venue": settings.PREFERRED_VENUE,
-            "mode": settings.ROUTING_MODE
-        }
+        "okx_env": settings.OKX_ENV,
+        "okx_api_key_masked": mask_secret(settings.OKX_LIVE_API_KEY if settings.OKX_ENV == "live" else settings.OKX_DEMO_API_KEY),
+        "binance_env": settings.BINANCE_ENV,
+        "binance_api_key_masked": mask_secret(settings.BINANCE_LIVE_API_KEY if settings.BINANCE_ENV == "live" else settings.BINANCE_DEMO_API_KEY),
+        "llm_base_url": settings.LLM_BASE_URL,
+        "llm_model": settings.LLM_MODEL,
+        "llm_key_masked": mask_secret(settings.LLM_API_KEY)
     }
 
 

@@ -8,11 +8,27 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Any, Dict, Optional
 from app.api.auth import verify_admin_session
+from app.core.config import settings
 from app.risk.constants import dump_risk_constants_summary
 from app.risk.interceptors import interceptor_pipeline
 from app.intelligence.circuit_breaker import circuit_breaker
 
 router = APIRouter(prefix="/risk", tags=["Risk Management"])
+
+
+class UpdateRiskConstantsRequest(BaseModel):
+    preset: Optional[str] = None  # "conservative", "balanced", "aggressive"
+    max_concurrent_positions: Optional[int] = None
+    max_same_direction_positions: Optional[int] = None
+    max_margin_equity_ratio: Optional[float] = None
+    min_leverage: Optional[float] = None
+    max_leverage: Optional[float] = None
+    per_trade_ratio: Optional[float] = None
+    min_risk_reward: Optional[float] = None
+    min_entry_confidence: Optional[float] = None
+    max_daily_loss_usdt: Optional[float] = None
+    time_stop_hours: Optional[float] = None
+    stop_cooldown_minutes: Optional[int] = None
 
 
 class SandboxSimulationRequest(BaseModel):
@@ -31,6 +47,51 @@ class SandboxSimulationRequest(BaseModel):
 async def get_risk_constants():
     """Retrieve current single source of truth risk parameters."""
     return dump_risk_constants_summary()
+
+
+@router.post("/constants", dependencies=[Depends(verify_admin_session)])
+async def update_risk_constants(req: UpdateRiskConstantsRequest):
+    """Update risk parameters or apply one-click risk presets."""
+    if req.preset == "conservative":
+        settings.RISK_MAX_LEVERAGE = 3.0
+        settings.RISK_MIN_ENTRY_CONFIDENCE = 85.0
+        settings.RISK_MAX_MARGIN_EQUITY_RATIO = 0.15
+        settings.RISK_PER_TRADE_RATIO = 0.015
+    elif req.preset == "balanced":
+        settings.RISK_MAX_LEVERAGE = 5.0
+        settings.RISK_MIN_ENTRY_CONFIDENCE = 80.0
+        settings.RISK_MAX_MARGIN_EQUITY_RATIO = 0.20
+        settings.RISK_PER_TRADE_RATIO = 0.02
+    elif req.preset == "aggressive":
+        settings.RISK_MAX_LEVERAGE = 10.0
+        settings.RISK_MIN_ENTRY_CONFIDENCE = 70.0
+        settings.RISK_MAX_MARGIN_EQUITY_RATIO = 0.35
+        settings.RISK_PER_TRADE_RATIO = 0.03
+
+    if req.max_concurrent_positions is not None:
+        settings.RISK_MAX_CONCURRENT_POSITIONS = req.max_concurrent_positions
+    if req.max_same_direction_positions is not None:
+        settings.RISK_MAX_SAME_DIRECTION_POSITIONS = req.max_same_direction_positions
+    if req.max_margin_equity_ratio is not None:
+        settings.RISK_MAX_MARGIN_EQUITY_RATIO = req.max_margin_equity_ratio
+    if req.min_leverage is not None:
+        settings.RISK_MIN_LEVERAGE = req.min_leverage
+    if req.max_leverage is not None:
+        settings.RISK_MAX_LEVERAGE = req.max_leverage
+    if req.per_trade_ratio is not None:
+        settings.RISK_PER_TRADE_RATIO = req.per_trade_ratio
+    if req.min_risk_reward is not None:
+        settings.RISK_MIN_RISK_REWARD = req.min_risk_reward
+    if req.min_entry_confidence is not None:
+        settings.RISK_MIN_ENTRY_CONFIDENCE = req.min_entry_confidence
+    if req.max_daily_loss_usdt is not None:
+        settings.RISK_MAX_DAILY_LOSS_USDT = req.max_daily_loss_usdt
+    if req.time_stop_hours is not None:
+        settings.RISK_TIME_STOP_HOURS = req.time_stop_hours
+    if req.stop_cooldown_minutes is not None:
+        settings.RISK_STOP_COOLDOWN_MINUTES = req.stop_cooldown_minutes
+
+    return {"status": "success", "message": "风控参数已更新生效", "constants": dump_risk_constants_summary()}
 
 
 @router.get("/circuit-breaker")
