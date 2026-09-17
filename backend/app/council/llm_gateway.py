@@ -88,7 +88,19 @@ class LLMGateway:
                     temperature=temperature,
                     response_format_json=response_format_json
                 )
-        # Fallback to global default model
+        # Fallback to pool default model if available
+        default_m = llm_model_manager.get_default_model()
+        if default_m and default_m.get("api_key"):
+            return await self.generate_chat_completion(
+                messages=messages,
+                model=default_m.get("model_name"),
+                base_url=default_m.get("base_url"),
+                api_key=default_m.get("api_key"),
+                temperature=temperature,
+                response_format_json=response_format_json
+            )
+
+        # Fallback to global environment configuration
         return await self.generate_chat_completion(
             messages=messages,
             temperature=temperature,

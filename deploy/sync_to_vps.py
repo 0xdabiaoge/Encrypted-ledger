@@ -39,7 +39,7 @@ def deploy_code_to_vps():
     tar_tmp = tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False)
     tar_tmp.close()
 
-    ignored_dirs = {"r20-quantum-trader-main", ".venv", "venv", "__pycache__", "node_modules", ".git"}
+    ignored_dirs = {"r20-quantum-trader-main", ".venv", "venv", "__pycache__", "node_modules", ".git", "data"}
     ignored_files = {".env", "encrypted_ledger.db", "encrypted_ledger.db-shm", "encrypted_ledger.db-wal"}
 
     with tarfile.open(tar_tmp.name, "w:gz") as tar:
@@ -107,8 +107,8 @@ def deploy_code_to_vps():
     stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/council/prompt-tokens")
     print("Prompt Studio Tokens response:", stdout.read().decode("utf-8", errors="replace")[:140])
 
-    stdin, stdout, stderr = client.exec_command("curl -s http://127.0.0.1:8080/api/v1/trading/share/EL-SH66335DD1")
-    print("Position Share response:", stdout.read().decode("utf-8", errors="replace")[:140])
+    stdin, stdout, stderr = client.exec_command("docker exec -i encrypted-ledger-app python -c \"import asyncio; from app.council.llm_models import llm_model_manager; print('LLM MODEL TEST:', asyncio.run(llm_model_manager.test_connection(model_id='model_216f2917')))\"")
+    print("VPS LLM Model Test result:", stdout.read().decode("utf-8", errors="replace"))
 
     client.close()
     print("Sync, deployment, and push completed successfully!")

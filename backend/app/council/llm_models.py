@@ -102,6 +102,20 @@ class LLMModelManager:
             res.pop("api_key", None)
         return res
 
+    def get_default_model(self) -> Optional[Dict[str, Any]]:
+        """Get default model entry with unmasked API key."""
+        if not self._models:
+            self.load_models()
+        # 1. Look for explicitly configured default model
+        for m in self._models.values():
+            if m.get("is_default") and m.get("api_key"):
+                return dict(m)
+        # 2. Look for any active model in the pool that has an API key configured
+        for m in self._models.values():
+            if m.get("api_key"):
+                return dict(m)
+        return None
+
     def save_model(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create or update a model in the pool."""
         raw_id = data.get("id")
@@ -118,6 +132,11 @@ class LLMModelManager:
         else:
             final_key = new_key.strip()
 
+        is_default = bool(data.get("is_default", False))
+        if is_default:
+            for m in self._models.values():
+                m["is_default"] = False
+
         model_entry = {
             "id": model_id,
             "name": data.get("name", "未命名模型").strip(),
@@ -125,7 +144,7 @@ class LLMModelManager:
             "base_url": data.get("base_url", "https://api.openai.com/v1").strip().rstrip("/"),
             "model_name": data.get("model_name", "gpt-4o").strip(),
             "api_key": final_key,
-            "is_default": bool(data.get("is_default", False)),
+            "is_default": is_default,
             "created_at": existing.get("created_at") or time.strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -145,12 +164,36 @@ class LLMModelManager:
             return True
         return False
 
-    async def test_connection(self, base_url: str, model_name: str, api_key: str) -> Tuple[bool, str]:
+    async def test_connection(
+        self,
+        base_url: str = "",
+        model_name: str = "",
+        api_key: str = "",
+        model_id: Optional[str] = None
+    ) -> Tuple[bool, str]:
         """Test whether the OpenAI-compatible endpoint responds properly."""
+        if not self._models:
+            self.load_models()
+
+        target_model = None
+        if model_id and model_id in self._models:
+            target_model = self._models[model_id]
+        elif not api_key or "***" in api_key or "••" in api_key:
+            for m in self._models.values():
+                if m.get("base_url", "").rstrip("/") == (base_url or "").rstrip("/") and m.get("model_name") == model_name:
+                    target_model = m
+                    break
+
+        if target_model:
+            base_url = base_url or target_model.get("base_url", "")
+            model_name = model_name or target_model.get("model_name", "")
+            if not api_key or "***" in api_key or "••" in api_key:
+                api_key = target_model.get("api_key", "")
+
         if not base_url or not model_name:
             return False, "Base URL 与 Model Name 不能为空"
         if not api_key:
-            return False, "API Key 不能为空"
+            return False, "API Key 不能为空，未找到有效的已保存密钥"
 
         url = f"{base_url.rstrip('/')}/chat/completions"
         headers = {

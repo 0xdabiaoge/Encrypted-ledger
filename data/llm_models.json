@@ -1,14 +1,14 @@
 {
   "models": [
     {
-      "id": "default_gateway",
-      "name": "默认基础模型 (Global Gateway)",
+      "id": "model_216f2917",
+      "name": "gemini-3.8-flash-high",
       "provider": "OpenAI-Compatible",
-      "base_url": "https://api.openai.com/v1",
+      "base_url": "https://newapi.solana.qzz.io/v1",
       "model_name": "gemini-3.8-flash-high",
-      "api_key": "",
-      "is_default": true,
-      "created_at": "2026-09-17 16:27:02"
+      "api_key": "sk-dHljlWLaBd2dtuvE4xcAgMiQGfjwA7oAmhIHMoHxoUPexnYx",
+      "is_default": false,
+      "created_at": "2026-09-17 14:05:24"
     }
   ],
   "version": "2.0.0"

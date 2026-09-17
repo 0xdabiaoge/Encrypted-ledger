@@ -221,9 +221,10 @@ class SaveLLMModelRequest(BaseModel):
 
 
 class TestLLMModelRequest(BaseModel):
-    base_url: str
-    model_name: str
-    api_key: str
+    base_url: Optional[str] = ""
+    model_name: Optional[str] = ""
+    api_key: Optional[str] = ""
+    model_id: Optional[str] = None
 
 
 @router.get("/llm/models")
@@ -255,7 +256,22 @@ async def delete_llm_model(model_id: str):
 async def test_llm_model(req: TestLLMModelRequest):
     """Test connectivity to an OpenAI-compatible endpoint."""
     from app.council.llm_models import llm_model_manager
-    ok, msg = await llm_model_manager.test_connection(req.base_url, req.model_name, req.api_key)
+    ok, msg = await llm_model_manager.test_connection(
+        base_url=req.base_url or "",
+        model_name=req.model_name or "",
+        api_key=req.api_key or "",
+        model_id=req.model_id
+    )
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"status": "success", "message": msg}
+
+
+@router.post("/llm/models/{model_id}/test", dependencies=[Depends(verify_admin_session)])
+async def test_specific_llm_model(model_id: str):
+    """Test connectivity of an existing saved model in the pool using its server-side secret key."""
+    from app.council.llm_models import llm_model_manager
+    ok, msg = await llm_model_manager.test_connection(model_id=model_id)
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
     return {"status": "success", "message": msg}

@@ -2607,17 +2607,18 @@
     }
 
     async function testFormModel() {
+      const id = document.getElementById('form-model-id').value.trim();
       const base_url = document.getElementById('form-model-base-url').value.trim();
       const model_name = document.getElementById('form-model-identifier').value.trim();
       const api_key = document.getElementById('form-model-key').value.trim();
       if (!base_url || !model_name) return alert('请先填写 Base URL 与真实模型名称');
-      if (!api_key) return alert('测试连通性需要输入有效的 API Key');
+      if (!api_key && !id) return alert('测试连通性需要输入有效的 API Key');
 
       try {
         const res = await fetch(`${API_BASE}/system/llm/models/test`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify({ base_url, model_name, api_key })
+          body: JSON.stringify({ model_id: id || undefined, base_url, model_name, api_key })
         });
         const data = await res.json();
         if (res.ok) {
@@ -2633,16 +2634,14 @@
     async function testSpecificModel(modelId) {
       const m = g_llm_models.find(x => x.id === modelId);
       if (!m) return;
-      alert(`正在测试模型「${m.name}」连通性，请稍候...`);
       try {
-        const res = await fetch(`${API_BASE}/system/llm/models/test`, {
+        const res = await fetch(`${API_BASE}/system/llm/models/${modelId}/test`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify({ base_url: m.base_url, model_name: m.model_name, api_key: m.api_key || '***' })
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
         });
         const data = await res.json();
         if (res.ok) {
-          alert(`🟢 模型「${m.name}」连通正常！` + data.message);
+          alert(`🟢 模型「${m.name}」连通测试成功！\n` + data.message);
         } else {
           alert(`🔴 连通测试失败: ` + (data.detail || '未知错误'));
         }
