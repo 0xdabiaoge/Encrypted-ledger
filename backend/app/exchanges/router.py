@@ -109,5 +109,26 @@ class SmartOrderRouter:
 
         return chosen, metrics
 
+    async def get_aggregated_balances(self) -> Dict[str, Any]:
+        """Aggregate total equity, available capital, and margin across OKX and Binance."""
+        bal_okx = None
+        bal_bin = None
+        try:
+            bal_okx = await self.okx.get_account_balance()
+        except Exception:
+            pass
+        try:
+            bal_bin = await self.binance.get_account_balance()
+        except Exception:
+            pass
+
+        eq_okx = bal_okx.total_equity_usd if bal_okx else 0.0
+        eq_bin = bal_bin.total_equity_usd if bal_bin else 0.0
+        return {
+            "total_equity_usd": round(eq_okx + eq_bin, 2),
+            "okx": {"total_equity_usd": round(eq_okx, 2), "raw": bal_okx.__dict__ if bal_okx else None},
+            "binance": {"total_equity_usd": round(eq_bin, 2), "raw": bal_bin.__dict__ if bal_bin else None}
+        }
+
 
 order_router = SmartOrderRouter()

@@ -33,7 +33,7 @@ async_session_factory = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Initialize database and enable SQLite WAL mode."""
+    """Initialize database and enable SQLite WAL mode, with safe column migrations."""
     settings.ensure_directories()
     async with engine.begin() as conn:
         # Enable WAL mode and synchronous=NORMAL for durability + speed
@@ -41,6 +41,19 @@ async def init_db() -> None:
         await conn.exec_driver_sql("PRAGMA synchronous=NORMAL;")
         await conn.exec_driver_sql("PRAGMA busy_timeout=5000;")
         await conn.run_sync(Base.metadata.create_all)
+
+        # Automatic lightweight migrations for existing databases
+        cursor = await conn.exec_driver_sql("PRAGMA table_info(admin_users);")
+        cols = {row[1] for row in cursor.fetchall()}
+        if cols:
+            if "role" not in cols:
+                await conn.exec_driver_sql("ALTER TABLE admin_users ADD COLUMN role VARCHAR(32) DEFAULT 'admin';")
+            if "invite_code" not in cols:
+                await conn.exec_driver_sql("ALTER TABLE admin_users ADD COLUMN invite_code VARCHAR(32);")
+            if "telegram_chat_id" not in cols:
+                await conn.exec_driver_sql("ALTER TABLE admin_users ADD COLUMN telegram_chat_id VARCHAR(64);")
+            if "is_active" not in cols:
+                await conn.exec_driver_sql("ALTER TABLE admin_users ADD COLUMN is_active BOOLEAN DEFAULT 1;")
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

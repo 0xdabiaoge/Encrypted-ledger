@@ -70,6 +70,10 @@ class CircuitBreakerSentinel:
         logger.critical(f"🚨 [CIRCUIT BREAKER ACTIVATED - Level {level}] {keyword} | {headline}")
         return state
 
+    def trigger_circuit_breaker(self, reason: str, details: str = "", level: int = 3) -> Dict[str, Any]:
+        """Structured emergency panic trigger."""
+        return self.trigger(headline=details or reason, keyword=reason, level=level)
+
     def check_headline(self, headline: str, summary: str = "") -> Optional[Dict[str, Any]]:
         full_text = f"{headline} {summary}"
         for pattern, threat_name, level in BLACK_SWAN_PATTERNS:

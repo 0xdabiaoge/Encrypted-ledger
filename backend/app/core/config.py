@@ -98,14 +98,19 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: int = 120
     COUNCIL_MODE: str = "council_debate"
 
-    # 6. Notifications
-    NOTIFY_TELEGRAM_ENABLED: int = 0
+    # 6. Notifications & Telegram Bot
+    NOTIFY_TELEGRAM_ENABLED: int = 1
     TELEGRAM_BOT_TOKEN: str = ""
+    TELEGRAM_ADMIN_CHAT_ID: str = ""
     TELEGRAM_CHAT_ID: str = ""
     NOTIFY_WECHAT_ENABLED: int = 0
     WECHAT_WEBHOOK_URL: str = ""
     NOTIFY_WEBHOOK_ENABLED: int = 0
     CUSTOM_WEBHOOK_URL: str = ""
+
+    # 7. Commercial Access & Data Masking
+    REGISTRATION_MODE: str = "open"  # "open" | "invite_only"
+    MASK_PUBLIC_DATA: int = 1        # 1: mask sensitive balance & position details for unauthenticated / guest viewers
 
     def ensure_directories(self):
         """Ensure runtime directories exist."""

@@ -1,13 +1,15 @@
 """
 Encrypted Ledger - Trading & Execution API
-Positions, aggregated balance, manual close, and manual execution cycle trigger.
+Supports role-based data masking:
+- Guests / Regular Users: View commercial-grade track records with sensitive balance & size fields securely masked;
+- Superadmin: Unlocks complete unmasked perspective with full operational control.
 """
 from __future__ import annotations
 
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional
-from app.api.auth import verify_admin_session
+from app.api.auth import get_optional_session, verify_admin_session
 from app.exchanges.router import order_router
 from app.scheduler.tasks import orchestrator
 
@@ -21,9 +23,14 @@ class ClosePositionRequest(BaseModel):
     size: Optional[float] = None
 
 
-@router.get("/positions", dependencies=[Depends(verify_admin_session)])
-async def get_all_positions():
-    """Retrieve all open positions across OKX and Binance."""
+@router.get("/positions")
+async def get_all_positions(session_payload=Depends(get_optional_session)):
+    """
+    Retrieve open positions across venues.
+    Applies security data masking if requester is not authenticated as Superadmin.
+    """
+    is_admin = bool(session_payload and session_payload.get("role") in ("superadmin", "admin"))
+
     positions = []
     errors = {}
     try:
@@ -38,12 +45,46 @@ async def get_all_positions():
     except Exception as e:
         errors["binance"] = str(e)
 
-    return {"positions": positions, "errors": errors}
+    if is_admin:
+        return {
+            "positions": positions,
+            "is_masked": False,
+            "errors": errors
+        }
+
+    # Data Masking for Public / Guest / Regular Member display
+    masked_positions = []
+    for p in positions:
+        ratio = float(p.get("unrealized_pnl_ratio", 0.0))
+        masked_positions.append({
+            "venue": p.get("venue"),
+            "symbol": p.get("symbol"),
+            "side": p.get("side"),
+            "leverage": p.get("leverage"),
+            "size": "***",  # Masked exact institutional lots
+            "entry_price": round(float(p.get("entry_price", 0.0)), 2),
+            "mark_price": round(float(p.get("mark_price", 0.0)), 2),
+            "unrealized_pnl_usd": None,  # Masked dollar amount
+            "unrealized_pnl_ratio": round(ratio, 4),  # Percentage return is transparent
+            "status": "保本锁利中" if ratio >= 0.015 else ("盈利奔跑中" if ratio > 0 else "动态风控中"),
+            "is_masked": True
+        })
+
+    return {
+        "positions": masked_positions,
+        "is_masked": True,
+        "errors": errors
+    }
 
 
-@router.get("/balance", dependencies=[Depends(verify_admin_session)])
-async def get_aggregated_balance():
-    """Retrieve equity and margins across OKX and Binance."""
+@router.get("/balance")
+async def get_aggregated_balance(session_payload=Depends(get_optional_session)):
+    """
+    Retrieve equity and account margins.
+    Masked for public visitors to protect institutional treasury confidentiality.
+    """
+    is_admin = bool(session_payload and session_payload.get("role") in ("superadmin", "admin"))
+
     bal_okx = None
     bal_bin = None
     errors = {}
@@ -63,20 +104,32 @@ async def get_aggregated_balance():
     total_margin = (bal_okx.margin_used_usd if bal_okx else 0.0) + (bal_bin.margin_used_usd if bal_bin else 0.0)
     total_upl = (bal_okx.unrealized_pnl_usd if bal_okx else 0.0) + (bal_bin.unrealized_pnl_usd if bal_bin else 0.0)
 
+    if is_admin:
+        return {
+            "total_equity_usd": round(total_equity, 2),
+            "available_usd": round(total_avail, 2),
+            "margin_used_usd": round(total_margin, 2),
+            "unrealized_pnl_usd": round(total_upl, 2),
+            "is_masked": False,
+            "okx": bal_okx.__dict__ if bal_okx else None,
+            "binance": bal_bin.__dict__ if bal_bin else None,
+            "errors": errors
+        }
+
+    # Public Masked View
     return {
-        "total_equity_usd": round(total_equity, 2),
-        "available_usd": round(total_avail, 2),
-        "margin_used_usd": round(total_margin, 2),
-        "unrealized_pnl_usd": round(total_upl, 2),
-        "okx": bal_okx.__dict__ if bal_okx else None,
-        "binance": bal_bin.__dict__ if bal_bin else None,
+        "total_equity_usd": 0.0,
+        "display_scale": "★ 100,000+ USDT",
+        "is_masked": True,
+        "okx": {"total_equity_usd": 0.0, "status": "接入正常 (OKX V5)"},
+        "binance": {"total_equity_usd": 0.0, "status": "接入正常 (币安合约)"},
         "errors": errors
     }
 
 
 @router.post("/cycle/trigger", dependencies=[Depends(verify_admin_session)])
 async def trigger_cycle():
-    """Manually trigger an immediate trade scan and execution cycle."""
+    """Manually trigger an immediate trade scan and execution cycle (Superadmin only)."""
     try:
         res = await orchestrator.execute_trade_cycle()
         return {"status": "success", "result": res}
@@ -86,7 +139,7 @@ async def trigger_cycle():
 
 @router.post("/position/close", dependencies=[Depends(verify_admin_session)])
 async def close_position(req: ClosePositionRequest):
-    """Manually close a specific open position."""
+    """Manually close a specific open position (Superadmin only)."""
     adapter = order_router.get_adapter(req.venue)
     try:
         res = await adapter.close_position(req.symbol, req.side, req.size)

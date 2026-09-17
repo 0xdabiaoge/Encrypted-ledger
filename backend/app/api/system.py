@@ -1,15 +1,19 @@
 """
-Encrypted Ledger - System Status & Dynamic Universe Management API
-Health checks, exchange connectivity runtime indicators, and live instrument addition/removal.
+Encrypted Ledger - System Status, Dynamic Universe & Multi-Agent Council API
+Health checks, exchange credentials, 4+1 multi-agent council seats management,
+and dual-tier Telegram Bot settings.
 """
 from __future__ import annotations
 
 import time
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Any, Dict, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from typing import Any, Dict, Optional
 from app.api.auth import verify_admin_session
 from app.core.config import settings
+from app.council.council_policy import council_policy_manager
+from app.council.council_desk import council_desk
+from app.notifications.telegram_bot import telegram_bot
 from app.quant.universe import universe_manager
 
 router = APIRouter(prefix="/system", tags=["System Management"])
@@ -31,7 +35,7 @@ async def health_check():
     return {
         "status": "healthy",
         "app_name": settings.APP_NAME,
-        "version": "1.0.0",
+        "version": "2.0.0-PRO",
         "timestamp_utc": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
     }
 
@@ -47,11 +51,13 @@ class UpdateCredentialsRequest(BaseModel):
     llm_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
     llm_model: Optional[str] = None
+    telegram_bot_token: Optional[str] = None
+    telegram_admin_chat_id: Optional[str] = None
 
 
 @router.post("/credentials", dependencies=[Depends(verify_admin_session)])
 async def update_credentials(req: UpdateCredentialsRequest):
-    """Update OKX, Binance, and LLM credentials dynamically."""
+    """Update OKX, Binance, LLM, and Telegram Bot credentials dynamically."""
     if req.okx_env:
         settings.OKX_ENV = req.okx_env.lower()
     if req.okx_api_key is not None:
@@ -90,7 +96,12 @@ async def update_credentials(req: UpdateCredentialsRequest):
     if req.llm_model is not None:
         settings.LLM_MODEL = req.llm_model
 
-    return {"status": "success", "message": "API 凭证已动态更新生效"}
+    if req.telegram_bot_token is not None:
+        settings.TELEGRAM_BOT_TOKEN = req.telegram_bot_token.strip()
+    if req.telegram_admin_chat_id is not None:
+        settings.TELEGRAM_ADMIN_CHAT_ID = req.telegram_admin_chat_id.strip()
+
+    return {"status": "success", "message": "系统与外部服务凭证已动态更新生效"}
 
 
 def mask_secret(s: str) -> str:
@@ -111,9 +122,93 @@ async def get_credentials():
         "binance_api_key_masked": mask_secret(settings.BINANCE_LIVE_API_KEY if settings.BINANCE_ENV == "live" else settings.BINANCE_DEMO_API_KEY),
         "llm_base_url": settings.LLM_BASE_URL,
         "llm_model": settings.LLM_MODEL,
-        "llm_key_masked": mask_secret(settings.LLM_API_KEY)
+        "llm_key_masked": mask_secret(settings.LLM_API_KEY),
+        "telegram_bot_token_masked": mask_secret(settings.TELEGRAM_BOT_TOKEN),
+        "telegram_admin_chat_id": settings.TELEGRAM_ADMIN_CHAT_ID or settings.TELEGRAM_CHAT_ID or ""
     }
 
+
+# ------------------------------------------------------------------------------
+# Multi-Agent Council Seats Management
+# ------------------------------------------------------------------------------
+
+class UpdateSeatRequest(BaseModel):
+    name: Optional[str] = None
+    role_title: Optional[str] = None
+    prompt: Optional[str] = None
+    weight: Optional[float] = None
+    temperature: Optional[float] = None
+    enabled: Optional[bool] = None
+    model_id: Optional[str] = None
+
+
+@router.get("/council/seats")
+async def get_council_seats():
+    """List configured 4+1 institutional multi-agent seats."""
+    return council_policy_manager.get_seats()
+
+
+@router.post("/council/seats/{seat_id}", dependencies=[Depends(verify_admin_session)])
+async def update_council_seat(seat_id: str, req: UpdateSeatRequest):
+    """Update system prompt, weight, model, or enabled status for a council seat."""
+    success = council_policy_manager.update_seat(seat_id, req.model_dump(exclude_unset=True))
+    if not success:
+        raise HTTPException(status_code=404, detail=f"未找到席位 {seat_id}")
+    return {"status": "success", "message": f"席位 {seat_id} 配置已更新生效"}
+
+
+@router.post("/council/reset", dependencies=[Depends(verify_admin_session)])
+async def reset_council_seats():
+    """Reset all council seats to default institutional hedge fund settings."""
+    seats = council_policy_manager.reset_to_defaults()
+    return {"status": "success", "message": "投委会 4+1 席位已全部重置为官方默认模板", "seats": seats}
+
+
+@router.get("/council/debates")
+async def get_recent_council_debates():
+    """Retrieve recent multi-agent deliberation records with full debate transcripts."""
+    return council_desk.get_latest_debate_history(15)
+
+
+# ------------------------------------------------------------------------------
+# Telegram Bot Testing & Webhook Dispatcher
+# ------------------------------------------------------------------------------
+
+@router.post("/telegram/test", dependencies=[Depends(verify_admin_session)])
+async def test_telegram_alert():
+    """Send a test notification to configured Superadmin Telegram Chat ID."""
+    if not settings.TELEGRAM_BOT_TOKEN:
+        raise HTTPException(status_code=400, detail="未配置 TELEGRAM_BOT_TOKEN，无法发送测试消息")
+    admin_chat = settings.TELEGRAM_ADMIN_CHAT_ID.strip() or settings.TELEGRAM_CHAT_ID.strip()
+    if not admin_chat:
+        raise HTTPException(status_code=400, detail="未配置 TELEGRAM_ADMIN_CHAT_ID，无法发送测试消息")
+
+    test_msg = (
+        "<b>🔔 [Encrypted Ledger] Telegram 机器人连通性测试成功！</b>\n\n"
+        "• 权限级别: <b>超级管理员 (Superadmin)</b>\n"
+        "• 状态: <b>实时警报通道已就绪</b>\n"
+        "• 支持指令: <code>/status</code>, <code>/positions</code>, <code>/panic</code>, <code>/cycle</code>, <code>/risk</code>"
+    )
+    ok = await telegram_bot.send_message(admin_chat, test_msg)
+    if not ok:
+        raise HTTPException(status_code=502, detail="Telegram 消息发送失败，请核对 Bot Token 及 Chat ID 是否正确")
+    return {"status": "success", "message": "Telegram 测试通知已成功发出，请检查您的手机或客户端"}
+
+
+@router.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """Receive and process incoming Telegram Bot updates for interactive commands."""
+    try:
+        data = await request.json()
+        reply = await telegram_bot.process_telegram_update(data)
+        return {"status": "ok", "reply": reply}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+
+# ------------------------------------------------------------------------------
+# Dynamic Universe Management
+# ------------------------------------------------------------------------------
 
 @router.post("/universe/add", dependencies=[Depends(verify_admin_session)])
 async def add_instrument_to_universe(req: AddInstrumentRequest):

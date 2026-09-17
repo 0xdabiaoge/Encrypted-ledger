@@ -29,6 +29,7 @@ from app.risk.interceptors import interceptor_pipeline
 from app.risk.supervisor import risk_supervisor
 from app.ledger.double_entry import double_entry_engine
 from app.ledger.policy_snapshot import policy_engine
+from app.notifications.telegram_bot import telegram_bot
 
 
 class TradingOrchestrator:
@@ -230,6 +231,22 @@ class TradingOrchestrator:
                             latency_ms=round((time.time() - start_ts) * 1000, 2),
                             note=f"Council decision: {decision.get('reasoning', '')}"
                         )
+
+                        # Send Telegram Notification to Admin
+                        try:
+                            await telegram_bot.notify_order_opened(
+                                symbol=sym,
+                                venue=chosen_venue,
+                                side=order_side,
+                                entry_price=entry_target,
+                                stop_loss=sl_price,
+                                take_profit=tp_price,
+                                rr=float(decision.get("risk_reward_ratio", 0.0)),
+                                confidence=conf,
+                                notional_usd=notional
+                            )
+                        except Exception as e:
+                            logger.warning(f"Telegram notify exception: {e}")
                     else:
                         logger.warning(f"🛑 [INTERCEPTOR BLOCKED] {sym} {action} rejected: {intercept_reason}")
                 else:
@@ -249,6 +266,7 @@ class TradingOrchestrator:
                         risk_reward_ratio=float(decision.get("risk_reward_ratio", 0.0)),
                         passed_interceptors=passed_intercept,
                         intercept_reason=intercept_reason,
+                        council_debate_json=json.dumps(decision.get("debate_transcript", []), ensure_ascii=False),
                         factor_snapshot_json=str(factors),
                         policy_hash=policy_hash
                     )

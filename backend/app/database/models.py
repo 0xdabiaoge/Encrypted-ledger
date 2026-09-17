@@ -110,12 +110,29 @@ class PolicySnapshotRecord(Base):
 
 
 class AdminUser(Base):
-    """Administrator credentials for control plane authentication."""
+    """User credentials for both Superadmin and platform registered users."""
     __tablename__ = "admin_users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(64), unique=True, nullable=False)
+    username = Column(String(64), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(32), default="superadmin")
+    role = Column(String(32), default="user", index=True)  # "superadmin" | "admin" | "user"
+    invite_code = Column(String(32), nullable=True)
+    telegram_chat_id = Column(String(64), nullable=True)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
+
+
+class InviteCode(Base):
+    """Commercial-grade invitation codes for member registration."""
+    __tablename__ = "invite_codes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    code = Column(String(32), unique=True, nullable=False, index=True)
+    created_by = Column(String(64), default="admin")
+    max_uses = Column(Integer, default=1)  # 0 = unlimited
+    used_count = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True, index=True)
+    note = Column(String(128), default="")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
