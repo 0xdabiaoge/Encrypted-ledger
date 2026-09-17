@@ -103,7 +103,7 @@ class OKXAdapter(BaseExchangeAdapter):
             "Accept": "application/json",
             "User-Agent": "EncryptedLedger-Desk/1.0"
         }
-        if self.is_demo:
+        if self.is_demo and auth_required:
             headers["x-simulated-trading"] = "1"
 
         if auth_required:
