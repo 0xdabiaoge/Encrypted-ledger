@@ -274,12 +274,14 @@ async def test_commercial_e2e():
             print(f"    - Cleaned up test model {created_model_id}")
 
             # 4.5 Strategy Presets & English System Prompt Verification
-            print("  ✓ Testing Institutional Strategy Presets (Conservative, Aggressive, High-Alpha, Balanced)...")
+            print("  ✓ Testing Institutional Strategy Presets (Conservative, Aggressive, High-Alpha, HFT-Scalper, Balanced)...")
             r_presets = await client.get("/api/v1/system/council/presets")
             assert r_presets.status_code == 200
             presets_data = r_presets.json()
-            assert len(presets_data["presets"]) == 4, f"Expected 4 presets, got {len(presets_data['presets'])}"
-            print(f"    - Verified 4 strategy presets: {[p['name'] for p in presets_data['presets']]}")
+            assert len(presets_data["presets"]) >= 5, f"Expected >= 5 presets, got {len(presets_data['presets'])}"
+            preset_ids = [p['id'] for p in presets_data['presets']]
+            assert "hft_scalper" in preset_ids, "hft_scalper preset must be available"
+            print(f"    - Verified {len(presets_data['presets'])} strategy presets: {[p['name'] for p in presets_data['presets']]}")
 
             # Apply 'conservative' preset
             r_apply_cons = await client.post("/api/v1/system/council/presets/conservative/apply", headers=admin_headers)
@@ -289,6 +291,15 @@ async def test_commercial_e2e():
             assert "[ROLE]: Conservative Trend" in cons_trend["prompt"]
             assert "# [角色定位]" in cons_trend["prompt"]
             print(f"    - Applied 'conservative' preset: seat_trend prompt verified with English instructions + Chinese comments")
+
+            # Apply 'hft_scalper' preset
+            r_apply_hft = await client.post("/api/v1/system/council/presets/hft_scalper/apply", headers=admin_headers)
+            assert r_apply_hft.status_code == 200
+            hft_seats = r_apply_hft.json()["seats"]
+            hft_quant = next(s for s in hft_seats if s["id"] == "seat_quant")
+            assert "Fee" in hft_quant["role_title"] or "Fee" in hft_quant["prompt"]
+            assert "Hard Fee Breakeven Hurdle" in hft_quant["prompt"]
+            print(f"    - Applied 'hft_scalper' preset: seat_quant fee breakeven hurdle & micro-imbalance verified")
 
             # Apply 'high_alpha' preset
             r_apply_alpha = await client.post("/api/v1/system/council/presets/high_alpha/apply", headers=admin_headers)

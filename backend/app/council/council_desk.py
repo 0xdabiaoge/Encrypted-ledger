@@ -47,6 +47,8 @@ class InvestmentCouncilDesk:
         """
         seats_config = {s["id"]: s for s in council_policy_manager.get_seats()}
         opinions = []
+        active_preset = council_policy_manager.get_active_preset()
+        is_hft = (active_preset == "hft_scalper")
 
         # 1. 顺势波段操盘官 (Trend-Pullback Trader)
         trend_pillar = factors.get("pillar_1_trend", {})
@@ -54,27 +56,27 @@ class InvestmentCouncilDesk:
         trend_dir = trend_pillar.get("direction", "NEUTRAL")
         macro_4h = trend_pillar.get("macro_4h_channel", "NEUTRAL")
 
-        if macro_4h == "BULLISH" and adx >= 22.0:
+        if macro_4h == "BULLISH" and adx >= (18.0 if is_hft else 22.0):
             t_action = "BUY"
             t_conf = min(92.0, 75.0 + adx * 0.5)
-            t_entry = round(current_price * 0.998, 4)
-            t_sl = round(current_price - 1.8 * atr, 4)
-            t_tp = round(current_price + 2.5 * 1.8 * atr, 4)
-            t_reason = f"4H宏观顺势多头通道明确，1H回踩关键均线支撑，ADX={adx:.1f}趋势强劲，坚决顺大势低吸反磨损。"
-        elif macro_4h == "BEARISH" and adx >= 22.0:
+            t_entry = round(current_price * 0.999 if is_hft else current_price * 0.998, 4)
+            t_sl = round(current_price - (0.8 * atr if is_hft else 1.8 * atr), 4)
+            t_tp = round(current_price + (1.6 * 0.8 * atr if is_hft else 2.5 * 1.8 * atr), 4)
+            t_reason = f"4H/1H宏观多头通道顺向，ADX={adx:.1f}，提议顺势微波段做多，确保执行速度。" if is_hft else f"4H宏观顺势多头通道明确，1H回踩关键均线支撑，ADX={adx:.1f}趋势强劲，坚决顺大势低吸反磨损。"
+        elif macro_4h == "BEARISH" and adx >= (18.0 if is_hft else 22.0):
             t_action = "SELL"
             t_conf = min(92.0, 75.0 + adx * 0.5)
-            t_entry = round(current_price * 1.002, 4)
-            t_sl = round(current_price + 1.8 * atr, 4)
-            t_tp = round(current_price - 2.5 * 1.8 * atr, 4)
-            t_reason = f"4H宏观空头承压结构，大周期反弹受阻均线压制，ADX={adx:.1f}，提议高空阻击破位。"
+            t_entry = round(current_price * 1.001 if is_hft else current_price * 1.002, 4)
+            t_sl = round(current_price + (0.8 * atr if is_hft else 1.8 * atr), 4)
+            t_tp = round(current_price - (1.6 * 0.8 * atr if is_hft else 2.5 * 1.8 * atr), 4)
+            t_reason = f"4H/1H微通道下行破位，ADX={adx:.1f}，提议高空阻击微波段。" if is_hft else f"4H宏观空头承压结构，大周期反弹受阻均线压制，ADX={adx:.1f}，提议高空阻击破位。"
         else:
             t_action = "HOLD"
             t_conf = 55.0
             t_entry = current_price
             t_sl = 0.0
             t_tp = 0.0
-            t_reason = f"宏观4H通道尚未确立强单边趋势 (ADX={adx:.1f})，建议克制盲目开仓，等待波段回踩确认。"
+            t_reason = f"宏观微通道尚未确立强单边趋势 (ADX={adx:.1f})，建议克制开仓，避免高频磨损。" if is_hft else f"宏观4H通道尚未确立强单边趋势 (ADX={adx:.1f})，建议克制盲目开仓，等待波段回踩确认。"
 
         trend_meta = seats_config.get("seat_trend", {})
         opinions.append({
@@ -97,27 +99,27 @@ class InvestmentCouncilDesk:
         acc = float(calc.get("acceleration", 0.0))
         burst = factors.get("pillar_3_volume", {}).get("volume_burst_ratio", 1.0)
 
-        if vel > 0 and acc > 0 and burst >= 1.3:
+        if vel > 0 and acc > 0 and burst >= (1.15 if is_hft else 1.3):
             m_action = "BUY"
             m_conf = min(95.0, 80.0 + burst * 5.0)
             m_entry = round(current_price, 4)
-            m_sl = round(current_price - 1.5 * atr, 4)
-            m_tp = round(current_price + 2.4 * 1.5 * atr, 4)
-            m_reason = f"微积分一阶速度v={vel:.4f}>0且二阶加速度a={acc:.4f}>0非线性爆发，量比放大{burst:.1f}倍，主张立即追击主升浪。"
-        elif vel < 0 and acc < 0 and burst >= 1.3:
+            m_sl = round(current_price - (0.7 * atr if is_hft else 1.5 * atr), 4)
+            m_tp = round(current_price + (1.65 * 0.7 * atr if is_hft else 2.4 * 1.5 * atr), 4)
+            m_reason = f"5m微积分速度v={vel:.4f}>0与加速度a={acc:.4f}>0瞬时脉冲爆发，量比{burst:.1f}倍，执行超短动能闪电突袭并快速平保！" if is_hft else f"微积分一阶速度v={vel:.4f}>0且二阶加速度a={acc:.4f}>0非线性爆发，量比放大{burst:.1f}倍，主张立即追击主升浪。"
+        elif vel < 0 and acc < 0 and burst >= (1.15 if is_hft else 1.3):
             m_action = "SELL"
             m_conf = min(95.0, 80.0 + burst * 5.0)
             m_entry = round(current_price, 4)
-            m_sl = round(current_price + 1.5 * atr, 4)
-            m_tp = round(current_price - 2.4 * 1.5 * atr, 4)
-            m_reason = f"微积分下行速度扩大，二阶加速度急剧恶化，带量击穿支撑，主张动能做空。"
+            m_sl = round(current_price + (0.7 * atr if is_hft else 1.5 * atr), 4)
+            m_tp = round(current_price - (1.65 * 0.7 * atr if is_hft else 2.4 * 1.5 * atr), 4)
+            m_reason = f"5m微积分下行加速度冲高，量比{burst:.1f}倍，执行超短动能闪电做空并快速平保！" if is_hft else f"微积分下行速度扩大，二阶加速度急剧恶化，带量击穿支撑，主张动能做空。"
         else:
             m_action = "HOLD"
             m_conf = 50.0
             m_entry = current_price
             m_sl = 0.0
             m_tp = 0.0
-            m_reason = f"动能指标平淡 (速度v={vel:.4f}, 加速度a={acc:.4f})，未检测到非线性突破临界点，假突破高危区严禁追单。"
+            m_reason = f"微动能平淡 (v={vel:.4f}, a={acc:.4f})，未检测到瞬时突破临界点，严防手续费空耗。" if is_hft else f"动能指标平淡 (速度v={vel:.4f}, 加速度a={acc:.4f})，未检测到非线性突破临界点，假突破高危区严禁追单。"
 
         momentum_meta = seats_config.get("seat_momentum", {})
         opinions.append({
@@ -141,27 +143,62 @@ class InvestmentCouncilDesk:
         ratio = float(smart.get("long_short_account_ratio", 1.0))
         spread_bps = float(micro.get("spread_bps", 1.5))
 
-        if imb > 0.15 and ratio <= 1.3 and spread_bps < 3.0:
-            q_action = "BUY"
-            q_conf = min(90.0, 78.0 + imb * 40.0)
-            q_entry = round(current_price, 4)
-            q_sl = round(current_price - 1.8 * atr, 4)
-            q_tp = round(current_price + 2.2 * 1.8 * atr, 4)
-            q_reason = f"盘口买盘失衡度显著占优 (Imbalance={imb*100:.1f}%)，散户多空比合理({ratio:.2f})未见拥挤拥堵，期望值E(X)显著为正。"
-        elif imb < -0.15 and ratio >= 1.6 and spread_bps < 3.0:
-            q_action = "SELL"
-            q_conf = min(90.0, 78.0 + abs(imb) * 40.0)
-            q_entry = round(current_price, 4)
-            q_sl = round(current_price + 1.8 * atr, 4)
-            q_tp = round(current_price - 2.2 * 1.8 * atr, 4)
-            q_reason = f"盘口卖盘压单厚重 (Imbalance={imb*100:.1f}%)，多空散户比超买严重({ratio:.2f})主力暗中派发，空头赔率极佳。"
+        if is_hft:
+            # HFT Fee Breakeven & Microstructure Invariant
+            fee_friction_ratio = 0.0010  # 0.10% round-trip friction
+            min_edge_ratio = fee_friction_ratio * 2.5  # 0.25% minimum expected move
+            vol_ratio = (atr / current_price) * 0.75 if current_price > 0 else 0.0
+
+            if vol_ratio < min_edge_ratio:
+                q_action = "HOLD"
+                q_conf = 65.0
+                q_entry = current_price
+                q_sl = 0.0
+                q_tp = 0.0
+                q_reason = f"【手续费保本守卫】当前微波动率({vol_ratio*100:.2f}%)不足以覆盖2.5倍双向手续费与滑点({min_edge_ratio*100:.2f}%)，严防手续费侵蚀，严格禁止开仓。"
+            elif imb > 0.10 and spread_bps <= 2.5:
+                q_action = "BUY"
+                q_conf = min(92.0, 80.0 + imb * 35.0)
+                q_entry = round(current_price, 4)
+                q_sl = round(current_price - 0.8 * atr, 4)
+                q_tp = round(current_price + 1.65 * 0.8 * atr, 4)
+                q_reason = f"盘口买盘微观失衡显著(+{imb*100:.1f}%)，价差{spread_bps:.1f}bps极优，预期波幅远超双向手续费损耗，执行超短线做多，第一目标位快速平保。"
+            elif imb < -0.10 and spread_bps <= 2.5:
+                q_action = "SELL"
+                q_conf = min(92.0, 80.0 + abs(imb) * 35.0)
+                q_entry = round(current_price, 4)
+                q_sl = round(current_price + 0.8 * atr, 4)
+                q_tp = round(current_price - 1.65 * 0.8 * atr, 4)
+                q_reason = f"盘口卖盘微观压单严重(-{abs(imb)*100:.1f}%)，价差{spread_bps:.1f}bps极优，预期波幅远超双向手续费损耗，执行超短线做空，第一目标位快速平保。"
+            else:
+                q_action = "HOLD"
+                q_conf = 52.0
+                q_entry = current_price
+                q_sl = 0.0
+                q_tp = 0.0
+                q_reason = f"盘口买卖失衡度({imb*100:.1f}%)与价差未达高频套利绝对优势，静默待机避免摩擦亏损。"
         else:
-            q_action = "HOLD"
-            q_conf = 52.0
-            q_entry = current_price
-            q_sl = 0.0
-            q_tp = 0.0
-            q_reason = f"盘口微观结构处于平衡胶着态 (Imbalance={imb*100:.1f}%)，滑点或大户持仓暂无显著统计套利优势。"
+            if imb > 0.15 and ratio <= 1.3 and spread_bps < 3.0:
+                q_action = "BUY"
+                q_conf = min(90.0, 78.0 + imb * 40.0)
+                q_entry = round(current_price, 4)
+                q_sl = round(current_price - 1.8 * atr, 4)
+                q_tp = round(current_price + 2.2 * 1.8 * atr, 4)
+                q_reason = f"盘口买盘失衡度显著占优 (Imbalance={imb*100:.1f}%)，散户多空比合理({ratio:.2f})未见拥挤拥堵，期望值E(X)显著为正。"
+            elif imb < -0.15 and ratio >= 1.6 and spread_bps < 3.0:
+                q_action = "SELL"
+                q_conf = min(90.0, 78.0 + abs(imb) * 40.0)
+                q_entry = round(current_price, 4)
+                q_sl = round(current_price + 1.8 * atr, 4)
+                q_tp = round(current_price - 2.2 * 1.8 * atr, 4)
+                q_reason = f"盘口卖盘压单厚重 (Imbalance={imb*100:.1f}%)，多空散户比超买严重({ratio:.2f})主力暗中派发，空头赔率极佳。"
+            else:
+                q_action = "HOLD"
+                q_conf = 52.0
+                q_entry = current_price
+                q_sl = 0.0
+                q_tp = 0.0
+                q_reason = f"盘口微观结构处于平衡胶着态 (Imbalance={imb*100:.1f}%)，滑点或大户持仓暂无显著统计套利优势。"
 
         quant_meta = seats_config.get("seat_quant", {})
         opinions.append({
@@ -328,6 +365,9 @@ class InvestmentCouncilDesk:
                 logger.warning(f"LLM multi-agent arbitration failed ({e}), falling back to deterministic consensus engine.")
 
         # 3. Deterministic Consensus Engine (Rule-based CIO arbitration)
+        active_preset = council_policy_manager.get_active_preset()
+        is_hft = (active_preset == "hft_scalper")
+
         buy_votes = sum(s["weight"] for s in seat_opinions if s["action"] == "BUY")
         sell_votes = sum(s["weight"] for s in seat_opinions if s["action"] == "SELL")
         hold_votes = sum(s["weight"] for s in seat_opinions if s["action"] == "HOLD")
@@ -347,23 +387,33 @@ class InvestmentCouncilDesk:
         elif buy_votes >= 0.50:
             final_action = "BUY"
             final_conf = round(min(94.0, 78.0 + buy_votes * 18.0), 1)
-            sl_dist = 1.8 * atr if atr > 0 else current_price * 0.015
+            sl_dist = (0.8 * atr if is_hft else 1.8 * atr) if atr > 0 else current_price * 0.012
             final_entry = round(current_price, 4)
             final_sl = round(current_price - sl_dist, 4)
-            final_tp = round(current_price + 2.3 * sl_dist, 4)
+            rr_mult = 1.65 if is_hft else 2.3
+            final_tp = round(current_price + rr_mult * sl_dist, 4)
             final_rr = round((final_tp - final_entry) / (final_entry - final_sl), 2)
-            cio_summary = f"投委会加权赞成开多 (赞成权重: {buy_votes*100:.0f}%)：顺势波段与微积分动能同向共振，多头胜率突出。"
-            cio_reason = f"CIO终审通过开多提案：几何盈亏比R:R={final_rr}>=2.0，入场置信度{final_conf}%满足门禁，附带原生防滑点止损单。"
+            if is_hft:
+                cio_summary = f"高频投委会决议 (赞成权重: {buy_votes*100:.0f}%)：微动能脉冲与盘口买压共振，预期利润空间大幅覆盖手续费，执行超短线保本剥头皮。"
+                cio_reason = f"高频保本终审通过：R:R={final_rr}>=1.5，执行第一目标位快速平保锁定手续费，紧贴 5m ATR 微止损，杜绝保证金受损。"
+            else:
+                cio_summary = f"投委会加权赞成开多 (赞成权重: {buy_votes*100:.0f}%)：顺势波段与微积分动能同向共振，多头胜率突出。"
+                cio_reason = f"CIO终审通过开多提案：几何盈亏比R:R={final_rr}>=2.0，入场置信度{final_conf}%满足门禁，附带原生防滑点止损单。"
         elif sell_votes >= 0.50:
             final_action = "SELL"
             final_conf = round(min(94.0, 78.0 + sell_votes * 18.0), 1)
-            sl_dist = 1.8 * atr if atr > 0 else current_price * 0.015
+            sl_dist = (0.8 * atr if is_hft else 1.8 * atr) if atr > 0 else current_price * 0.012
             final_entry = round(current_price, 4)
             final_sl = round(current_price + sl_dist, 4)
-            final_tp = round(current_price - 2.3 * sl_dist, 4)
+            rr_mult = 1.65 if is_hft else 2.3
+            final_tp = round(current_price - rr_mult * sl_dist, 4)
             final_rr = round((final_entry - final_tp) / (final_sl - final_entry), 2)
-            cio_summary = f"投委会加权赞成做空 (做空权重: {sell_votes*100:.0f}%)：大周期承压，盘口卖盘压制，空头动能发散。"
-            cio_reason = f"CIO终审通过做空提案：几何盈亏比R:R={final_rr}>=2.0，入场置信度{final_conf}%满足门禁。"
+            if is_hft:
+                cio_summary = f"高频投委会决议 (做空权重: {sell_votes*100:.0f}%)：微动能下行与盘口抛压共振，预期利润空间大幅覆盖手续费，执行超短线保本做空。"
+                cio_reason = f"高频保本终审通过：R:R={final_rr}>=1.5，执行第一目标位快速平保锁定手续费，杜绝保证金受损。"
+            else:
+                cio_summary = f"投委会加权赞成做空 (做空权重: {sell_votes*100:.0f}%)：大周期承压，盘口卖盘压制，空头动能发散。"
+                cio_reason = f"CIO终审通过做空提案：几何盈亏比R:R={final_rr}>=2.0，入场置信度{final_conf}%满足门禁。"
         else:
             final_action = "HOLD"
             final_conf = 50.0

@@ -1123,7 +1123,8 @@
               <select id="select-strategy-preset" onchange="previewPresetDesc()" class="bg-dark-card border border-dark-border rounded-lg px-3 py-1.5 text-xs text-white font-medium focus:border-brand-500 outline-none">
                 <option value="balanced">⚖️ 平衡机构量化型 (Balanced Standard)</option>
                 <option value="conservative">🛡️ 稳健价值保本型 (Conservative Steady)</option>
-                <option value="aggressive">⚡ 激进动能突击型 (Aggressive Momentum)</option>
+                <option value="hft_scalper">⚡ 超短高频剥头皮 (HFT Scalper & Fee Guard)</option>
+                <option value="aggressive">🚀 激进动能突击型 (Aggressive Momentum)</option>
                 <option value="high_alpha">🎯 高风险高回报猎手 (High-Alpha Degen)</option>
               </select>
               <button onclick="applySelectedPreset()" class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md transition flex items-center space-x-1.5 whitespace-nowrap">
@@ -2487,6 +2488,7 @@
         badge.innerText = p.name.split(' (')[0];
         const colorMap = {
           blue: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+          cyan: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
           emerald: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
           amber: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
           purple: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
