@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Encrypted Ledger - 机构级加密货币量化交易与双式账本终端</title>
+  <!-- Tailwind CSS & Lucide Icons & Chart.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f0fdf4', 500: '#22c55e', 600: '#16a34a', 900: '#14532d' },
+            dark: { 800: '#131722', 850: '#0e121b', 900: '#080a0f', card: '#181e2b', border: '#262d3d' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; background-color: #080a0f; color: #e2e8f0; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0e121b; }
+    ::-webkit-scrollbar-thumb { background: #262d3d; border-radius: 3px; }
+    .neon-border { box-shadow: 0 0 15px rgba(34, 197, 94, 0.15); }
+    .badge-bullish { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+    .badge-bearish { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-neutral { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+  <!-- Top Navigation -->
+  <header class="bg-dark-850 border-b border-dark-border px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center font-black text-black text-lg">
+        EL
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-white flex items-center space-x-2">
+          <span>ENCRYPTED LEDGER</span>
+          <span class="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono">v1.0.0-PRO</span>
+        </h1>
+        <p class="text-xs text-gray-400 font-mono">OKX & Binance Dual-Venue SOR · Fail-Closed Interceptors</p>
+      </div>
+    </div>
+
+    <!-- Center Sentinel Badges -->
+    <div class="flex items-center space-x-4">
+      <div id="cb-badge" class="flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="cb-text">黑天鹅哨兵: 正常运行</span>
+      </div>
+      <div class="flex items-center space-x-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 px-3 py-1 rounded-full text-xs">
+        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+        <span>物理风控: 17项单一事实源 (Fail-Closed)</span>
+      </div>
+    </div>
+
+    <!-- Actions & Status -->
+    <div class="flex items-center space-x-3">
+      <button onclick="triggerTradeCycle()" id="btn-trigger" class="flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white font-medium text-xs px-3.5 py-1.5 rounded-md transition shadow-md">
+        <i data-lucide="zap" class="w-4 h-4"></i>
+        <span>执行巡检</span>
+      </button>
+      <button onclick="fetchMacroNews()" class="p-1.5 rounded-md bg-dark-card border border-dark-border text-gray-300 hover:text-white" title="刷新情报">
+        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 p-6 space-y-6 max-w-[1750px] mx-auto w-full">
+    <!-- Row 1: Bento Asset & Performance Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-gray-400 text-xs">
+          <span>全所总资产净值</span>
+          <i data-lucide="wallet" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-2xl font-bold font-mono text-white" id="stat-total-equity">$0.00</div>
+          <div class="text-xs text-gray-400 mt-1 flex justify-between">
+            <span>OKX: <b id="stat-okx-equity" class="text-gray-300">$0.00</b></span>
+            <span>Binance: <b id="stat-bin-equity" class="text-gray-300">$0.00</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-gray-400 text-xs">
+          <span>今日已实现盈亏</span>
+          <i data-lucide="calendar" class="w-4 h-4 text-blue-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-2xl font-bold font-mono" id="stat-today-pnl">$0.00</div>
+          <div class="text-xs text-gray-400 mt-1">单日熔断线: <span class="text-red-400">-5.0% (封顶150U)</span></div>
+        </div>
+      </div>
+
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-gray-400 text-xs">
+          <span>累计综合胜率</span>
+          <i data-lucide="trending-up" class="w-4 h-4 text-brand-500"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-2xl font-bold font-mono text-emerald-400" id="stat-win-rate">0.0%</div>
+          <div class="text-xs text-gray-400 mt-1">闭环交易样本: <span id="stat-total-trades" class="text-gray-200">0</span> 笔</div>
+        </div>
+      </div>
+
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-gray-400 text-xs">
+          <span>利润因子 (Profit Factor)</span>
+          <i data-lucide="pie-chart" class="w-4 h-4 text-purple-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-2xl font-bold font-mono text-purple-400" id="stat-profit-factor">0.00</div>
+          <div class="text-xs text-gray-400 mt-1">累计磨损手续费: <span id="stat-total-fees" class="text-gray-200">$0.00</span></div>
+        </div>
+      </div>
+
+      <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-gray-400 text-xs">
+          <span>活跃策略快照指纹</span>
+          <i data-lucide="fingerprint" class="w-4 h-4 text-amber-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-sm font-bold font-mono text-amber-300 truncate" id="stat-policy-tag">v1.0.0-genesis</div>
+          <div class="text-xs text-gray-400 font-mono mt-1 truncate" id="stat-policy-hash">SHA: loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Two Columns (Left: 10-Crypto Quant Matrix | Right: Macro Intelligence & Open Positions) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Left 2 Cols: Quant Factors Matrix & Instrument Pool -->
+      <div class="lg:col-span-2 space-y-6">
+        <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="layout-grid" class="w-5 h-5 text-brand-500"></i>
+              <h2 class="text-base font-bold text-white">交易宇宙与因果动力学五大因子矩阵</h2>
+            </div>
+            <button onclick="openAddInstrumentModal()" class="text-xs bg-dark-850 hover:bg-dark-border border border-dark-border px-3 py-1.5 rounded-md text-emerald-400 flex items-center space-x-1">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>添加自选币种</span>
+            </button>
+          </div>
+
+          <!-- Factors Table -->
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-dark-850 text-gray-400 uppercase text-[11px] border-b border-dark-border">
+                <tr>
+                  <th class="py-2.5 px-3">标的/分级</th>
+                  <th class="py-2.5 px-3">最新市价</th>
+                  <th class="py-2.5 px-3">速度/加速度 (微积分)</th>
+                  <th class="py-2.5 px-3">1H ADX/RSI</th>
+                  <th class="py-2.5 px-3">盘口失衡度</th>
+                  <th class="py-2.5 px-3">Alpha分 / 信号</th>
+                  <th class="py-2.5 px-3 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody id="universe-tbody" class="divide-y divide-dark-border font-mono">
+                <tr>
+                  <td colspan="7" class="py-4 text-center text-gray-500">正在抓取实时全网行情与动力学指标...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Real-time Positions -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="activity" class="w-5 h-5 text-blue-400"></i>
+              <h2 class="text-base font-bold text-white">双所实时存量持仓与浮盈保护 (OKX & Binance)</h2>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-gray-300">
+              <thead class="bg-dark-850 text-gray-400 uppercase text-[11px] border-b border-dark-border">
+                <tr>
+                  <th class="py-2 px-3">交易所</th>
+                  <th class="py-2 px-3">标的</th>
+                  <th class="py-2 px-3">方向/杠杆</th>
+                  <th class="py-2 px-3">持仓量</th>
+                  <th class="py-2 px-3">开仓均价</th>
+                  <th class="py-2 px-3">标记市价</th>
+                  <th class="py-2 px-3">浮动盈亏</th>
+                  <th class="py-2 px-3 text-right">紧急平仓</th>
+                </tr>
+              </thead>
+              <tbody id="positions-tbody" class="divide-y divide-dark-border font-mono">
+                <tr>
+                  <td colspan="8" class="py-4 text-center text-gray-500">当前无在途持仓（资金 100% 安全闲置中）</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right 1 Col: 7x24 Macro Intelligence & Black-Swan Sentinel -->
+      <div class="space-y-6">
+        <!-- News Feed -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg flex flex-col h-[480px]">
+          <div class="flex items-center justify-between pb-3 border-b border-dark-border">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="radio" class="w-4 h-4 text-red-400 animate-pulse"></i>
+              <h2 class="text-base font-bold text-white">全球 7x24 宏观要闻与黑天鹅雷达</h2>
+            </div>
+            <span class="text-[11px] text-gray-400" id="news-updated-time">--:--:--</span>
+          </div>
+          <div id="news-container" class="flex-1 overflow-y-auto space-y-3 mt-3 pr-1 text-xs">
+            <div class="text-center text-gray-500 py-6">正在同步金十数据与新浪宏观要闻...</div>
+          </div>
+        </div>
+
+        <!-- Heuristic Self-Evolution Memory Card -->
+        <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="brain" class="w-4 h-4 text-purple-400"></i>
+              <h2 class="text-sm font-bold text-white">AI 投委会交易心法记忆 (Self-Evolution)</h2>
+            </div>
+            <button onclick="triggerSelfEvolution()" class="text-[11px] text-purple-400 hover:text-purple-300">强制自省</button>
+          </div>
+          <div id="memory-content" class="bg-dark-850 p-3 rounded-lg text-xs text-gray-300 font-mono max-h-48 overflow-y-auto leading-relaxed">
+            正在读取自进化经验...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: Double-Entry Immutable Ledger Audit Table -->
+    <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="book-open" class="w-5 h-5 text-amber-400"></i>
+          <h2 class="text-base font-bold text-white">Encrypted Ledger 加密双式记账本 (不可篡改审计流)</h2>
+        </div>
+        <div class="text-xs text-gray-400 font-mono">
+          每一笔交易强制绑定 SHA-256 策略版本与毫秒级滑点
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs text-gray-300">
+          <thead class="bg-dark-850 text-gray-400 uppercase text-[11px] border-b border-dark-border">
+            <tr>
+              <th class="py-2.5 px-3">记账编号</th>
+              <th class="py-2.5 px-3">时间 (UTC)</th>
+              <th class="py-2.5 px-3">交易所</th>
+              <th class="py-2.5 px-3">动作类型</th>
+              <th class="py-2.5 px-3">成交均价</th>
+              <th class="py-2.5 px-3">数量/名义额</th>
+              <th class="py-2.5 px-3">已实现盈亏</th>
+              <th class="py-2.5 px-3">手续费</th>
+              <th class="py-2.5 px-3">滑点 (bps)</th>
+              <th class="py-2.5 px-3">策略指纹哈希</th>
+            </tr>
+          </thead>
+          <tbody id="ledger-tbody" class="divide-y divide-dark-border font-mono">
+            <tr>
+              <td colspan="10" class="py-4 text-center text-gray-500">暂无平仓历史分录</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add Instrument Modal -->
+  <div id="modal-add-inst" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-dark-card border border-dark-border rounded-xl max-w-md w-full p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-dark-border pb-3">
+        <h3 class="font-bold text-white text-base">添加自定义关注交易标的</h3>
+        <button onclick="closeAddInstrumentModal()" class="text-gray-400 hover:text-white">&times;</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-gray-400 mb-1">标的代码 (如 NEAR, AVAX, TON)</label>
+          <input id="input-inst-name" type="text" placeholder="例如: TON" class="w-full bg-dark-850 border border-dark-border rounded px-3 py-2 text-white font-mono uppercase" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-gray-400 mb-1">标的分级</label>
+            <select id="input-inst-tier" class="w-full bg-dark-850 border border-dark-border rounded px-3 py-2 text-white">
+              <option value="tier_2_momentum">高弹性动量 (Tier-2)</option>
+              <option value="tier_1_bluechip">蓝筹主流 (Tier-1)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-gray-400 mb-1">杠杆上限</label>
+            <input id="input-inst-leverage" type="number" value="3" min="1" max="5" class="w-full bg-dark-850 border border-dark-border rounded px-3 py-2 text-white font-mono" />
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end space-x-2 pt-2 border-t border-dark-border">
+        <button onclick="closeAddInstrumentModal()" class="px-4 py-1.5 rounded bg-dark-850 border border-dark-border text-gray-300 text-xs">取消</button>
+        <button onclick="submitAddInstrument()" class="px-4 py-1.5 rounded bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold">确认添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Javascript Logic -->
+  <script>
+    lucide.createIcons();
+
+    const API_BASE = '/api/v1';
+
+    // 1. Initial Load
+    async function initDashboard() {
+      await Promise.all([
+        fetchSummary(),
+        fetchUniverseAndFactors(),
+        fetchPositions(),
+        fetchMacroNews(),
+        fetchLedgerEntries(),
+        fetchTradingMemory(),
+        checkCircuitBreaker()
+      ]);
+    }
+
+    // 2. Fetch Summary Statistics
+    async function fetchSummary() {
+      try {
+        const [balRes, sumRes, polRes] = await Promise.all([
+          fetch(`${API_BASE}/trading/balance`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/ledger/summary`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/council/policy/active`)
+        ]);
+
+        if (balRes.ok) {
+          const bal = await balRes.json();
+          document.getElementById('stat-total-equity').innerText = `$${bal.total_equity_usd.toFixed(2)}`;
+          if (bal.okx) document.getElementById('stat-okx-equity').innerText = `$${bal.okx.total_equity_usd.toFixed(2)}`;
+          if (bal.binance) document.getElementById('stat-bin-equity').innerText = `$${bal.binance.total_equity_usd.toFixed(2)}`;
+        }
+
+        if (sumRes.ok) {
+          const sum = await sumRes.json();
+          document.getElementById('stat-today-pnl').innerText = `${sum.today_pnl_usd >= 0 ? '+' : ''}$${sum.today_pnl_usd.toFixed(2)}`;
+          document.getElementById('stat-today-pnl').className = `text-2xl font-bold font-mono ${sum.today_pnl_usd >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+          document.getElementById('stat-win-rate').innerText = `${sum.win_rate}%`;
+          document.getElementById('stat-total-trades').innerText = sum.total_trades;
+          document.getElementById('stat-profit-factor').innerText = sum.profit_factor.toFixed(2);
+          document.getElementById('stat-total-fees').innerText = `$${sum.total_fees_usd.toFixed(2)}`;
+        }
+
+        if (polRes.ok) {
+          const pol = await polRes.json();
+          document.getElementById('stat-policy-tag').innerText = pol.version_tag || 'v1.0.0-genesis';
+          document.getElementById('stat-policy-hash').innerText = `SHA: ${pol.sha256_hash ? pol.sha256_hash.substring(0, 16) : 'N/A'}`;
+        }
+      } catch (err) {
+        console.error('fetchSummary error:', err);
+      }
+    }
+
+    // 3. Fetch Universe and Compute Factors
+    async function fetchUniverseAndFactors() {
+      try {
+        const uRes = await fetch(`${API_BASE}/market/universe`);
+        if (!uRes.ok) return;
+        const universe = await uRes.json();
+        const tbody = document.getElementById('universe-tbody');
+        tbody.innerHTML = '';
+
+        for (const item of universe) {
+          const sym = item.name;
+          const tr = document.createElement('tr');
+          tr.id = `row-${sym}`;
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 font-bold text-white flex items-center space-x-2">
+              <span>${sym}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-dark-850 text-gray-400">${item.tier === 'tier_1_bluechip' ? '蓝筹' : '动量'}</span>
+            </td>
+            <td class="py-2.5 px-3" id="px-${sym}">$0.00</td>
+            <td class="py-2.5 px-3" id="calc-${sym}">--</td>
+            <td class="py-2.5 px-3" id="adx-${sym}">--</td>
+            <td class="py-2.5 px-3" id="imb-${sym}">--</td>
+            <td class="py-2.5 px-3" id="alpha-${sym}"><span class="badge-neutral px-2 py-0.5 rounded">计算中</span></td>
+            <td class="py-2.5 px-3 text-right">
+              <button onclick="removeInstrument('${sym}')" class="text-gray-500 hover:text-red-400 p-1" title="移出池">&times;</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+
+          // Asynchronously load factors for each symbol
+          loadSymbolFactors(sym);
+        }
+      } catch (err) {
+        console.error('fetchUniverse error:', err);
+      }
+    }
+
+    async function loadSymbolFactors(sym) {
+      try {
+        const [tRes, fRes] = await Promise.all([
+          fetch(`${API_BASE}/market/ticker/${sym}?venue=okx`),
+          fetch(`${API_BASE}/market/factors/${sym}`)
+        ]);
+
+        if (tRes.ok) {
+          const t = await tRes.json();
+          const pxEl = document.getElementById(`px-${sym}`);
+          if (pxEl) pxEl.innerText = `$${t.last_price.toFixed(t.last_price > 10 ? 2 : 4)}`;
+        }
+
+        if (fRes.ok) {
+          const f = (await fRes.json()).factors;
+          const calcEl = document.getElementById(`calc-${sym}`);
+          if (calcEl && f.pillar_1_trend) {
+            const vel = f.pillar_1_trend.velocity;
+            const acc = f.pillar_1_trend.acceleration;
+            calcEl.innerHTML = `<span class="${vel >= 0 ? 'text-emerald-400' : 'text-red-400'}">${vel >= 0 ? '+' : ''}${vel.toFixed(2)}%</span> / <span class="${acc >= 0 ? 'text-emerald-400' : 'text-red-400'}">${acc >= 0 ? '+' : ''}${acc.toFixed(2)}</span>`;
+          }
+
+          const adxEl = document.getElementById(`adx-${sym}`);
+          if (adxEl && f.pillar_1_trend) {
+            adxEl.innerText = `${f.pillar_1_trend.adx.toFixed(1)} / ${f.pillar_1_trend.rsi.toFixed(0)}`;
+          }
+
+          const imbEl = document.getElementById(`imb-${sym}`);
+          if (imbEl && f.pillar_4_microstructure) {
+            const imb = f.pillar_4_microstructure.imbalance_ratio;
+            imbEl.innerHTML = `<span class="${imb >= 0 ? 'text-emerald-400' : 'text-red-400'}">${imb >= 0 ? '+' : ''}${(imb * 100).toFixed(1)}%</span>`;
+          }
+
+          const alphaEl = document.getElementById(`alpha-${sym}`);
+          if (alphaEl) {
+            let badgeClass = 'badge-neutral';
+            if (f.signal === 'BUY' || f.signal === 'STRONG_BUY') badgeClass = 'badge-bullish';
+            else if (f.signal === 'SELL' || f.signal === 'STRONG_SELL') badgeClass = 'badge-bearish';
+            alphaEl.innerHTML = `<span class="${badgeClass} px-2 py-0.5 rounded font-bold">${f.alpha_score.toFixed(0)}分 [${f.signal}]</span>`;
+          }
+        }
+      } catch (e) {
+        console.warn(`Error loading factors for ${sym}:`, e);
+      }
+    }
+
+    // 4. Fetch Positions
+    async function fetchPositions() {
+      try {
+        const res = await fetch(`${API_BASE}/trading/positions`, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        const tbody = document.getElementById('positions-tbody');
+        if (!data.positions || data.positions.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-500">当前无在途持仓（资金 100% 安全闲置中）</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = '';
+        for (const p of data.positions) {
+          const tr = document.createElement('tr');
+          const isProfit = p.unrealized_pnl_usd >= 0;
+          tr.innerHTML = `
+            <td class="py-2 px-3 font-bold uppercase ${p.venue === 'okx' ? 'text-emerald-400' : 'text-amber-400'}">${p.venue}</td>
+            <td class="py-2 px-3 font-bold text-white">${p.symbol}</td>
+            <td class="py-2 px-3 font-bold ${p.side === 'long' ? 'text-emerald-400' : 'text-red-400'}">${p.side.toUpperCase()} ${p.leverage}x</td>
+            <td class="py-2 px-3">${p.size}</td>
+            <td class="py-2 px-3">$${p.entry_price.toFixed(2)}</td>
+            <td class="py-2 px-3">$${p.mark_price.toFixed(2)}</td>
+            <td class="py-2 px-3 font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}">${isProfit ? '+' : ''}$${p.unrealized_pnl_usd.toFixed(2)} (${(p.unrealized_pnl_ratio * 100).toFixed(1)}%)</td>
+            <td class="py-2 px-3 text-right">
+              <button onclick="emergencyClose('${p.venue}', '${p.symbol}', '${p.side}')" class="bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 text-[11px] px-2.5 py-1 rounded">平仓</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        }
+      } catch (err) {
+        console.error('fetchPositions error:', err);
+      }
+    }
+
+    // 5. Fetch Macro News
+    async function fetchMacroNews() {
+      try {
+        const res = await fetch(`${API_BASE}/intelligence/news`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const container = document.getElementById('news-container');
+        document.getElementById('news-updated-time').innerText = data.updated_at ? data.updated_at.substring(11, 19) + ' UTC' : '--:--:--';
+
+        if (!data.news || data.news.length === 0) {
+          container.innerHTML = '<div class="text-center text-gray-500 py-6">暂无快讯更新</div>';
+          return;
+        }
+
+        container.innerHTML = '';
+        for (const item of data.news.slice(0, 15)) {
+          const div = document.createElement('div');
+          div.className = 'bg-dark-850 p-2.5 rounded-lg border border-dark-border/60 hover:border-dark-border transition';
+          div.innerHTML = `
+            <div class="flex items-center justify-between text-[10px] text-gray-400 mb-1">
+              <span class="font-bold text-emerald-400">${item.source}</span>
+              <span>${item.time}</span>
+            </div>
+            <div class="text-gray-200 font-medium leading-relaxed">${item.title}</div>
+          `;
+          container.appendChild(div);
+        }
+      } catch (err) {
+        console.error('fetchMacroNews error:', err);
+      }
+    }
+
+    // 6. Fetch Double-Entry Ledger Entries
+    async function fetchLedgerEntries() {
+      try {
+        const res = await fetch(`${API_BASE}/ledger/entries?limit=15`, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        const entries = await res.json();
+        const tbody = document.getElementById('ledger-tbody');
+        if (!entries || entries.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" class="py-4 text-center text-gray-500">暂无历史记账记录</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = '';
+        for (const e of entries) {
+          const tr = document.createElement('tr');
+          const isProfit = e.realized_pnl_usd >= 0;
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 text-gray-400">#${e.id}</td>
+            <td class="py-2.5 px-3 text-gray-400">${e.created_at}</td>
+            <td class="py-2.5 px-3 font-bold uppercase ${e.venue === 'okx' ? 'text-emerald-400' : 'text-amber-400'}">${e.venue}</td>
+            <td class="py-2.5 px-3 font-bold ${e.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}">${e.entry_type}</td>
+            <td class="py-2.5 px-3">$${e.fill_price.toFixed(2)}</td>
+            <td class="py-2.5 px-3">${e.fill_qty} ($${e.notional_usd.toFixed(0)})</td>
+            <td class="py-2.5 px-3 font-bold ${isProfit ? 'text-emerald-400' : 'text-red-400'}">${isProfit ? '+' : ''}$${e.realized_pnl_usd.toFixed(2)}</td>
+            <td class="py-2.5 px-3 text-gray-400">$${e.fee_usd.toFixed(3)}</td>
+            <td class="py-2.5 px-3 text-gray-400">${e.slippage_bps.toFixed(1)}</td>
+            <td class="py-2.5 px-3 text-amber-300 truncate max-w-[120px]" title="${e.policy_hash}">${e.policy_hash.substring(0, 10)}...</td>
+          `;
+          tbody.appendChild(tr);
+        }
+      } catch (err) {
+        console.error('fetchLedgerEntries error:', err);
+      }
+    }
+
+    // 7. Check Circuit Breaker
+    async function checkCircuitBreaker() {
+      try {
+        const res = await fetch(`${API_BASE}/risk/circuit-breaker`);
+        if (!res.ok) return;
+        const cb = await res.json();
+        const badge = document.getElementById('cb-badge');
+        const text = document.getElementById('cb-text');
+        if (cb.active) {
+          badge.className = 'flex items-center space-x-2 bg-red-500/20 border border-red-500/30 text-red-400 px-3 py-1 rounded-full text-xs font-bold';
+          text.innerText = `🚨 黑天鹅熔断生效中: ${cb.keyword}`;
+        } else {
+          badge.className = 'flex items-center space-x-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs';
+          text.innerText = '黑天鹅哨兵: 正常运行';
+        }
+      } catch (err) {}
+    }
+
+    // 8. Fetch Trading Memory
+    async function fetchTradingMemory() {
+      try {
+        const res = await fetch(`${API_BASE}/council/evolution/memory`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const content = document.getElementById('memory-content');
+        content.innerText = data.memory_markdown || '暂无历史沉淀经验，恪守交易纪律。';
+      } catch (err) {}
+    }
+
+    // 9. Actions
+    async function triggerTradeCycle() {
+      const btn = document.getElementById('btn-trigger');
+      btn.disabled = true;
+      btn.innerText = '巡检计算中...';
+      try {
+        const res = await fetch(`${API_BASE}/trading/cycle/trigger`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        alert('交易巡检执行完成！详情请查看控制台与记账本。');
+        await initDashboard();
+      } catch (e) {
+        alert('执行异常: ' + e);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4"></i><span>执行巡检</span>';
+        lucide.createIcons();
+      }
+    }
+
+    async function triggerSelfEvolution() {
+      try {
+        await fetch(`${API_BASE}/council/evolution/trigger`, { method: 'POST', headers: getAuthHeaders() });
+        alert('自进化经验复盘分析完成！已写入 AI_TRADING_MEMORY.md');
+        fetchTradingMemory();
+      } catch (e) {
+        alert('自进化分析失败: ' + e);
+      }
+    }
+
+    async function emergencyClose(venue, symbol, side) {
+      if (!confirm(`确认要紧急市价全平 [${venue.toUpperCase()}] 的 ${symbol} ${side.toUpperCase()} 持仓吗？`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/trading/position/close`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ venue, symbol, side })
+        });
+        alert('平仓指令已送达交易所！');
+        fetchPositions();
+      } catch (e) {
+        alert('平仓失败: ' + e);
+      }
+    }
+
+    // 10. Dynamic Universe Management
+    function openAddInstrumentModal() {
+      document.getElementById('modal-add-inst').classList.remove('hidden');
+    }
+    function closeAddInstrumentModal() {
+      document.getElementById('modal-add-inst').classList.add('hidden');
+    }
+    async function submitAddInstrument() {
+      const name = document.getElementById('input-inst-name').value.trim().toUpperCase();
+      const tier = document.getElementById('input-inst-tier').value;
+      const max_leverage = parseFloat(document.getElementById('input-inst-leverage').value) || 3;
+      if (!name) return alert('请输入有效的币种代码！');
+
+      try {
+        const res = await fetch(`${API_BASE}/system/universe/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ name, tier, max_leverage })
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          return alert('添加失败: ' + (err.detail || '未知错误'));
+        }
+        alert(`币种 ${name} 已成功纳入量化交易池！`);
+        closeAddInstrumentModal();
+        fetchUniverseAndFactors();
+      } catch (e) {
+        alert('网络请求失败: ' + e);
+      }
+    }
+
+    async function removeInstrument(symbol) {
+      if (!confirm(`确认要将 ${symbol} 从交易池中移除吗？`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/system/universe/${symbol}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          document.getElementById(`row-${symbol}`)?.remove();
+        }
+      } catch (e) {
+        alert('移除失败: ' + e);
+      }
+    }
+
+    function getAuthHeaders() {
+      // In dev mode, return empty or bearer token
+      return {};
+    }
+
+    // Auto Refresh Every 30 Seconds
+    window.onload = () => {
+      initDashboard();
+      setInterval(() => {
+        fetchPositions();
+        fetchMacroNews();
+        checkCircuitBreaker();
+      }, 30000);
+    };
+  </script>
+</body>
+</html>

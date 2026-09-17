@@ -1,0 +1,33 @@
+# Git & IDE
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+*.swo
+
+# Python Artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+env/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Node Artifacts
+node_modules/
+
+# Legacy repo & scratch files
+r20-quantum-trader-main/
+tests/
+.system_generated/
+
+# Secret & Local env (will be mounted or injected via docker-compose)
+.env
+data/.encrypted_ledger_secret.key
+logs/*.log

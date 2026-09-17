@@ -1,0 +1,22 @@
+[Unit]
+Description=Encrypted Ledger - Institutional Crypto Quant Trading System
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/encrypted-ledger
+EnvironmentFile=/opt/encrypted-ledger/.env
+ExecStart=/opt/encrypted-ledger/.venv/bin/python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8080 --workers 1
+Restart=always
+RestartSec=5s
+LimitNOFILE=65536
+
+# Security Hardening
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
