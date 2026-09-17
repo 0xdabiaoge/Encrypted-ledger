@@ -54,7 +54,7 @@
       <div>
         <h1 class="text-lg font-bold text-white flex items-center space-x-2">
           <span>ENCRYPTED LEDGER</span>
-          <span class="text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold">商用专业版 v2.0</span>
+          <span class="text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold">v2.0</span>
         </h1>
         <p class="text-xs text-gray-400">OKX 与币安双所撮合 · 4+1 多智能体投委会共识 · 17项物理风控</p>
       </div>
@@ -630,26 +630,84 @@
             </div>
           </div>
 
-          <!-- LLM Intelligence Section -->
-          <div class="border border-dark-border rounded-lg p-4 bg-dark-850/50 space-y-3">
-            <div class="border-b border-dark-border/60 pb-2">
+          <!-- LLM Multi-Model Intelligence Pool Section -->
+          <div class="border border-dark-border rounded-lg p-4 bg-dark-850/50 space-y-4">
+            <div class="flex items-center justify-between border-b border-dark-border/60 pb-2">
               <span class="font-bold text-white text-sm flex items-center space-x-2">
                 <span class="w-2 h-2 rounded-full bg-purple-400"></span>
-                <span>多智能体基础模型配置 (LLM Gateway)</span>
+                <span>多智能体基础模型池配置 (LLM Model Pool)</span>
               </span>
+              <button onclick="toggleModelForm()" class="px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center space-x-1 shadow transition">
+                <span>+ 添加新模型</span>
+              </button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-gray-400 mb-1">API Base URL</label>
-                <input id="cfg-llm-base-url" type="text" placeholder="https://api.openai.com/v1" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono" />
+            
+            <p class="text-[11px] text-gray-400">
+              在此添加多个 OpenAI 兼容推理模型（例如 Google Gemini、DeepSeek V3、Claude 3.5、GPT-4o 或本地自建模型），并在「多智能体席位管理」中为每个角色分配独立专属模型。
+            </p>
+
+            <!-- Configured Models List -->
+            <div id="llm-models-list" class="space-y-2">
+              <!-- Populated dynamically by JS -->
+            </div>
+
+            <!-- Add/Edit Model Form (Hidden by default, toggled via button) -->
+            <div id="llm-model-form" class="hidden border border-purple-500/30 rounded-lg p-3.5 bg-dark-900/90 space-y-3">
+              <div class="flex items-center justify-between border-b border-dark-border/60 pb-1.5">
+                <span id="model-form-title" class="font-bold text-purple-300 text-xs">➕ 添加新推理模型</span>
+                <button onclick="toggleModelForm(false)" class="text-gray-400 hover:text-white text-xs">✕ 取消</button>
               </div>
-              <div>
-                <label class="block text-gray-400 mb-1">Model Name</label>
-                <input id="cfg-llm-model" type="text" placeholder="gemini-3.8-flash-high" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono" />
+              <input type="hidden" id="form-model-id" value="" />
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-gray-400 text-xs mb-1">模型别名 / 展示标签</label>
+                  <input id="form-model-name" type="text" placeholder="例如: Google Gemini 2.5 Flash 或 DeepSeek V3" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white text-xs font-mono" />
+                </div>
+                <div>
+                  <label class="block text-gray-400 text-xs mb-1">提供商 / 标签</label>
+                  <input id="form-model-provider" type="text" placeholder="例如: Google / DeepSeek / OpenAI / 自建" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white text-xs font-mono" />
+                </div>
               </div>
-              <div>
-                <label class="block text-gray-400 mb-1">API Key</label>
-                <input id="cfg-llm-api-key" type="password" placeholder="sk-••••••••••••" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white font-mono" />
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-gray-400 text-xs mb-1">API Base URL</label>
+                  <input id="form-model-base-url" type="text" placeholder="https://api.openai.com/v1" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white text-xs font-mono" />
+                </div>
+                <div>
+                  <label class="block text-gray-400 text-xs mb-1">真实模型代号 (Model Identifier)</label>
+                  <input id="form-model-identifier" type="text" placeholder="例如: gemini-2.5-flash 或 deepseek-chat" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white text-xs font-mono" />
+                </div>
+                <div>
+                  <label class="block text-gray-400 text-xs mb-1">API Key</label>
+                  <input id="form-model-key" type="password" placeholder="sk-••••••••••••" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1.5 text-white text-xs font-mono" />
+                </div>
+              </div>
+              <div class="flex items-center justify-end space-x-2 pt-1">
+                <button type="button" onclick="testFormModel()" class="px-3 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-xs font-bold transition">
+                  ⚡ 连通性测试
+                </button>
+                <button type="button" onclick="saveModelFromForm()" class="px-4 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow transition">
+                  💾 保存至模型池
+                </button>
+              </div>
+            </div>
+
+            <!-- Global Default Fallback (Collapsed/Compact) -->
+            <div class="border-t border-dark-border/40 pt-3">
+              <span class="text-xs text-gray-400 block mb-2 font-bold">默认全局网关兜底 (Default Fallback Gateway):</span>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-gray-500 text-[11px] mb-1">默认 Base URL</label>
+                  <input id="cfg-llm-base-url" type="text" placeholder="https://api.openai.com/v1" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1 text-white font-mono text-xs" />
+                </div>
+                <div>
+                  <label class="block text-gray-500 text-[11px] mb-1">默认 Model Name</label>
+                  <input id="cfg-llm-model" type="text" placeholder="gemini-3.8-flash-high" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1 text-white font-mono text-xs" />
+                </div>
+                <div>
+                  <label class="block text-gray-500 text-[11px] mb-1">默认 API Key</label>
+                  <input id="cfg-llm-api-key" type="password" placeholder="sk-••••••••••••" class="w-full bg-dark-card border border-dark-border rounded px-3 py-1 text-white font-mono text-xs" />
+                </div>
               </div>
             </div>
           </div>
@@ -1638,7 +1696,10 @@
         }
       });
 
-      if (tab === 'creds') loadCredentials();
+      if (tab === 'creds') {
+        loadCredentials();
+        loadLLMModels();
+      }
       if (tab === 'council') loadCouncilSeats();
       if (tab === 'risk') loadRiskConstants();
       if (tab === 'policy') loadPolicyData();
@@ -1646,7 +1707,181 @@
       lucide.createIcons();
     }
 
-    // Tab 1: Credentials
+    // Tab 1: Credentials & LLM Model Pool
+    let g_llm_models = [];
+
+    async function loadLLMModels() {
+      try {
+        const res = await fetch(`${API_BASE}/system/llm/models`, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        g_llm_models = await res.json();
+        renderLLMModels();
+      } catch (e) {
+        console.error('loadLLMModels error:', e);
+      }
+    }
+
+    function renderLLMModels() {
+      const container = document.getElementById('llm-models-list');
+      if (!container) return;
+      if (!g_llm_models || !g_llm_models.length) {
+        container.innerHTML = '<div class="text-xs text-gray-500 py-2">暂无已添加的独立模型，可点击上方「+ 添加新模型」注册。</div>';
+        return;
+      }
+      container.innerHTML = g_llm_models.map(m => `
+        <div class="border border-dark-border/80 rounded-lg p-3 bg-dark-900/60 flex items-center justify-between">
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-white text-xs">${m.name}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 font-mono">${m.model_name}</span>
+              <span class="text-[10px] text-gray-400 font-mono">(${m.provider || 'OpenAI兼容'})</span>
+              ${m.is_default ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">默认</span>' : ''}
+            </div>
+            <div class="text-[11px] text-gray-400 font-mono truncate max-w-md">
+              <span class="text-gray-500">端点:</span> ${m.base_url} &nbsp;|&nbsp; <span class="text-gray-500">Key:</span> ${m.api_key_masked || '未设置'}
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button type="button" onclick="testSpecificModel('${m.id}')" class="px-2.5 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-xs font-bold transition">
+              ⚡ 连通测试
+            </button>
+            <button type="button" onclick="editModel('${m.id}')" class="px-2.5 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-bold transition">
+              ✏️ 编辑
+            </button>
+            <button type="button" onclick="deleteModel('${m.id}')" class="px-2.5 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 text-xs font-bold transition">
+              🗑️
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleModelForm(show) {
+      const form = document.getElementById('llm-model-form');
+      if (show === undefined) {
+        form.classList.toggle('hidden');
+      } else if (show) {
+        form.classList.remove('hidden');
+      } else {
+        form.classList.add('hidden');
+      }
+      if (!form.classList.contains('hidden')) {
+        document.getElementById('model-form-title').innerText = '➕ 添加新推理模型';
+        document.getElementById('form-model-id').value = '';
+        document.getElementById('form-model-name').value = '';
+        document.getElementById('form-model-provider').value = 'OpenAI-Compatible';
+        document.getElementById('form-model-base-url').value = 'https://api.openai.com/v1';
+        document.getElementById('form-model-identifier').value = '';
+        document.getElementById('form-model-key').value = '';
+        document.getElementById('form-model-key').placeholder = 'sk-••••••••••••';
+      }
+    }
+
+    function editModel(modelId) {
+      const m = g_llm_models.find(x => x.id === modelId);
+      if (!m) return;
+      toggleModelForm(true);
+      document.getElementById('model-form-title').innerText = `✏️ 编辑模型: ${m.name}`;
+      document.getElementById('form-model-id').value = m.id;
+      document.getElementById('form-model-name').value = m.name;
+      document.getElementById('form-model-provider').value = m.provider || 'OpenAI-Compatible';
+      document.getElementById('form-model-base-url').value = m.base_url;
+      document.getElementById('form-model-identifier').value = m.model_name;
+      document.getElementById('form-model-key').value = '';
+      document.getElementById('form-model-key').placeholder = `保持原密钥 (${m.api_key_masked || '未设置'}) 或输入新 Key`;
+    }
+
+    async function saveModelFromForm() {
+      const id = document.getElementById('form-model-id').value.trim();
+      const name = document.getElementById('form-model-name').value.trim();
+      const provider = document.getElementById('form-model-provider').value.trim();
+      const base_url = document.getElementById('form-model-base-url').value.trim();
+      const model_name = document.getElementById('form-model-identifier').value.trim();
+      const api_key = document.getElementById('form-model-key').value.trim();
+
+      if (!name || !base_url || !model_name) {
+        return alert('请完整填写模型别名、API Base URL 以及真实模型名称！');
+      }
+
+      try {
+        const payload = { id, name, provider, base_url, model_name, api_key };
+        const res = await fetch(`${API_BASE}/system/llm/models`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('保存失败: ' + (data.detail || '未知错误'));
+        alert(`✅ 模型「${name}」已成功保存至模型池！`);
+        toggleModelForm(false);
+        loadLLMModels();
+      } catch (e) {
+        alert('保存请求异常: ' + e);
+      }
+    }
+
+    async function deleteModel(modelId) {
+      const m = g_llm_models.find(x => x.id === modelId);
+      if (!confirm(`确认要从模型池中删除模型「${m ? m.name : modelId}」吗？`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/system/llm/models/${modelId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (!res.ok) return alert('删除失败: ' + (data.detail || '未知错误'));
+        alert('✅ 模型已成功从模型池移除！');
+        loadLLMModels();
+      } catch (e) {
+        alert('删除请求异常: ' + e);
+      }
+    }
+
+    async function testFormModel() {
+      const base_url = document.getElementById('form-model-base-url').value.trim();
+      const model_name = document.getElementById('form-model-identifier').value.trim();
+      const api_key = document.getElementById('form-model-key').value.trim();
+      if (!base_url || !model_name) return alert('请先填写 Base URL 与真实模型名称');
+      if (!api_key) return alert('测试连通性需要输入有效的 API Key');
+
+      try {
+        const res = await fetch(`${API_BASE}/system/llm/models/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ base_url, model_name, api_key })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('🟢 连通测试成功！' + data.message);
+        } else {
+          alert('🔴 连通测试未通过: ' + (data.detail || '未知错误'));
+        }
+      } catch (e) {
+        alert('测试请求异常: ' + e);
+      }
+    }
+
+    async function testSpecificModel(modelId) {
+      const m = g_llm_models.find(x => x.id === modelId);
+      if (!m) return;
+      alert(`正在测试模型「${m.name}」连通性，请稍候...`);
+      try {
+        const res = await fetch(`${API_BASE}/system/llm/models/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ base_url: m.base_url, model_name: m.model_name, api_key: m.api_key || '***' })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`🟢 模型「${m.name}」连通正常！` + data.message);
+        } else {
+          alert(`🔴 连通测试失败: ` + (data.detail || '未知错误'));
+        }
+      } catch (e) {
+        alert('测试异常: ' + e);
+      }
+    }
+
     async function loadCredentials() {
       try {
         const res = await fetch(`${API_BASE}/system/credentials`, { headers: getAuthHeaders() });
@@ -1727,6 +1962,11 @@
     // Tab 2: Multi-Agent Council Seats Management
     async function loadCouncilSeats() {
       try {
+        if (!g_llm_models || !g_llm_models.length) {
+          const mRes = await fetch(`${API_BASE}/system/llm/models`, { headers: getAuthHeaders() });
+          if (mRes.ok) g_llm_models = await mRes.json();
+        }
+
         const res = await fetch(`${API_BASE}/system/council/seats`);
         if (!res.ok) return;
         const seats = await res.json();
@@ -1736,6 +1976,14 @@
         seats.forEach(s => {
           const card = document.createElement('div');
           card.className = 'border border-dark-border rounded-lg p-4 bg-dark-850/50 space-y-3';
+          const assignedModel = g_llm_models.find(m => m.id === s.model_id);
+          const modelBadge = assignedModel ? `🤖 ${assignedModel.name}` : '⚙️ 默认基础模型/确定性引擎';
+
+          const modelOptions = [
+            `<option value="">默认基础模型 / 数理确定性引擎</option>`,
+            ...g_llm_models.map(m => `<option value="${m.id}" ${s.model_id === m.id ? 'selected' : ''}>${m.name} (${m.model_name})</option>`)
+          ].join('');
+
           card.innerHTML = `
             <div class="flex items-center justify-between border-b border-dark-border/60 pb-2">
               <div class="flex items-center space-x-2">
@@ -1746,6 +1994,7 @@
                 </div>
               </div>
               <div class="flex items-center space-x-3">
+                <span class="text-[11px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">${modelBadge}</span>
                 <span class="text-[11px] text-gray-400">权重: <b class="text-emerald-400 font-mono">${s.weight}</b></span>
                 <span class="text-[11px] text-gray-400">温度: <b class="text-purple-400 font-mono">${s.temperature}</b></span>
                 <span class="text-xs px-2 py-0.5 rounded ${s.enabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gray-500/20 text-gray-400'}">
@@ -1771,6 +2020,12 @@
                   <span class="text-gray-400">权重:</span>
                   <input type="number" id="weight-${s.id}" step="0.05" min="0" max="1" value="${s.weight}" class="w-16 bg-dark-card border border-dark-border rounded px-2 py-0.5 text-white font-mono text-xs" />
                 </div>
+                <div class="flex items-center space-x-1 ml-2">
+                  <span class="text-gray-400">分配模型:</span>
+                  <select id="model-${s.id}" class="bg-dark-card border border-dark-border rounded px-2 py-1 text-white font-mono text-xs">
+                    ${modelOptions}
+                  </select>
+                </div>
               </div>
               <button onclick="saveCouncilSeat('${s.id}')" class="px-3 py-1 rounded bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs">
                 保存此席位
@@ -1788,16 +2043,18 @@
       const prompt = document.getElementById(`prompt-${seatId}`).value;
       const enabled = document.getElementById(`enable-${seatId}`).checked;
       const weight = parseFloat(document.getElementById(`weight-${seatId}`).value) || 0.25;
+      const model_id = document.getElementById(`model-${seatId}`).value;
 
       try {
         const res = await fetch(`${API_BASE}/system/council/seats/${seatId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify({ prompt, enabled, weight })
+          body: JSON.stringify({ prompt, enabled, weight, model_id })
         });
         const data = await res.json();
         if (!res.ok) return alert('更新失败: ' + (data.detail || '未知错误'));
         alert(`✅ 席位 ${seatId} 已保存生效！`);
+        loadCouncilSeats();
       } catch (e) {
         alert('保存席位请求异常: ' + e);
       }

@@ -231,6 +231,48 @@ async def test_commercial_e2e():
             assert len(history) >= 1
             print(f"  ✓ Verified debate history API: {len(history)} records in cache")
 
+            # 4.4 Multi-Model Pool Management & Seat Assignment
+            print("  ✓ Testing Multi-Model Pool CRUD & Seat Model Assignment...")
+            r_models = await client.get("/api/v1/system/llm/models")
+            assert r_models.status_code == 200
+            models_list = r_models.json()
+            assert isinstance(models_list, list)
+            print(f"    - Current model pool count: {len(models_list)}")
+
+            # Admin adds a new model (e.g. DeepSeek V3)
+            r_add_model = await client.post("/api/v1/system/llm/models", headers=admin_headers, json={
+                "name": "DeepSeek V3 Reasoning",
+                "provider": "DeepSeek",
+                "base_url": "https://api.deepseek.com/v1",
+                "model_name": "deepseek-chat",
+                "api_key": "sk-deepseek-test-key-123456"
+            })
+            assert r_add_model.status_code == 200
+            created_model = r_add_model.json()["model"]
+            created_model_id = created_model["id"]
+            assert created_model["api_key_masked"].startswith("sk-")
+            print(f"    - Added model '{created_model['name']}' (ID: {created_model_id})")
+
+            # Admin assigns this model to Seat 1 (seat_trend)
+            r_assign_seat = await client.post("/api/v1/system/council/seats/seat_trend", headers=admin_headers, json={
+                "model_id": created_model_id
+            })
+            assert r_assign_seat.status_code == 200
+            print(f"    - Assigned model '{created_model_id}' to seat_trend")
+
+            # Verify seat configuration has model_id
+            r_seats_updated = await client.get("/api/v1/system/council/seats")
+            trend_seat = next((s for s in r_seats_updated.json() if s["id"] == "seat_trend"), None)
+            assert trend_seat is not None
+            assert trend_seat.get("model_id") == created_model_id, "Seat model_id must match assigned model"
+            print(f"    - Verified seat_trend model_id is persistently updated to: {trend_seat.get('model_id')}")
+
+            # Clean up: Delete test model and reset seat
+            await client.post("/api/v1/system/council/seats/seat_trend", headers=admin_headers, json={"model_id": ""})
+            r_del_model = await client.delete(f"/api/v1/system/llm/models/{created_model_id}", headers=admin_headers)
+            assert r_del_model.status_code == 200
+            print(f"    - Cleaned up test model {created_model_id}")
+
             # ------------------------------------------------------------------
             # 5. Dual-Tier Telegram Bot Engine & Interactive Command Routing
             # ------------------------------------------------------------------

@@ -232,7 +232,7 @@ class InvestmentCouncilDesk:
         """
         atr = float(factors.get("pillar_2_volatility", {}).get("atr", current_price * 0.015))
 
-        # 1. Gather opinions from the 4 specialized seats
+        # 1. Gather baseline opinions from the 4 specialized seats
         seat_opinions = self._generate_specialized_seat_opinions(
             symbol=symbol,
             current_price=current_price,
@@ -241,11 +241,54 @@ class InvestmentCouncilDesk:
             atr=atr
         )
 
+        seats_config = {s["id"]: s for s in council_policy_manager.get_seats()}
+
+        # 1.1 For seats with assigned LLM models, execute independent LLM reasoning
+        for op in seat_opinions:
+            seat_id = op.get("seat_id")
+            s_cfg = seats_config.get(seat_id, {})
+            model_id = s_cfg.get("model_id")
+            if model_id:
+                try:
+                    s_prompt = s_cfg.get("prompt") or op.get("opinion")
+                    s_temp = float(s_cfg.get("temperature", 0.2))
+                    u_content = (
+                        f"待研判标的: {symbol}, 当前基准价: {current_price}, ATR: {atr:.2f}\n"
+                        f"五大因子指标: {json.dumps(factors, ensure_ascii=False)}\n"
+                        f"宏观要闻: {json.dumps(macro_news[:3], ensure_ascii=False)}\n"
+                        "请根据你的专属席位角色哲学与审查要点，输出严格 JSON "
+                        '(格式: {"action": "BUY"|"SELL"|"HOLD", "confidence": float, "entry_target": float, "stop_loss": float, "take_profit": float, "opinion": "80字内简述"}):'
+                    )
+                    s_messages = [
+                        {"role": "system", "content": s_prompt},
+                        {"role": "user", "content": u_content}
+                    ]
+                    raw_s = await llm_gateway.generate_with_model_id(model_id, s_messages, temperature=s_temp)
+                    parsed_s = json.loads(raw_s)
+                    if parsed_s.get("action") in ("BUY", "SELL", "HOLD"):
+                        op["action"] = parsed_s["action"]
+                    if "confidence" in parsed_s and parsed_s["confidence"] is not None:
+                        op["confidence"] = float(parsed_s["confidence"])
+                    if "entry_target" in parsed_s and parsed_s["entry_target"]:
+                        op["entry_target"] = float(parsed_s["entry_target"])
+                    if "stop_loss" in parsed_s and parsed_s["stop_loss"]:
+                        op["stop_loss"] = float(parsed_s["stop_loss"])
+                    if "take_profit" in parsed_s and parsed_s["take_profit"]:
+                        op["take_profit"] = float(parsed_s["take_profit"])
+                    if parsed_s.get("opinion"):
+                        op["opinion"] = str(parsed_s["opinion"])[:100]
+                    op["llm_model_used"] = model_id
+                except Exception as e:
+                    logger.warning(f"Seat {seat_id} LLM reasoning with model {model_id} failed ({e}), keeping algorithmic baseline.")
+
         # 2. Check if LLM is configured for CIO arbitration
-        if settings.LLM_API_KEY:
+        cio_cfg = council_policy_manager.get_seat("seat_cio") or {}
+        cio_model_id = cio_cfg.get("model_id")
+        has_cio_model = bool(cio_model_id) or bool(settings.LLM_API_KEY)
+
+        if has_cio_model:
             try:
-                cio_prompt = council_policy_manager.get_seat("seat_cio")
-                cio_system = cio_prompt.get("prompt") if cio_prompt else "你现在是 Encrypted Ledger 首席投资官 (CIO)。"
+                cio_system = cio_cfg.get("prompt") if cio_cfg else "你现在是 Encrypted Ledger 首席投资官 (CIO)。"
 
                 user_content = f"""
 【待审阅交易标的】: {symbol}
@@ -272,9 +315,9 @@ class InvestmentCouncilDesk:
                     {"role": "system", "content": cio_system},
                     {"role": "user", "content": user_content}
                 ]
-                raw_resp = await llm_gateway.generate_chat_completion(messages, temperature=0.1)
+                raw_resp = await llm_gateway.generate_with_model_id(cio_model_id, messages, temperature=float(cio_cfg.get("temperature", 0.1)))
                 decision = json.loads(raw_resp)
-                decision["source"] = "multi_agent_llm_council"
+                decision["source"] = f"multi_agent_llm_council ({cio_model_id or 'default'})"
                 decision["debate_transcript"] = seat_opinions
                 decision["timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
 

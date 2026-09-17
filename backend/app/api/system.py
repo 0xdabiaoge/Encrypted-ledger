@@ -171,6 +171,61 @@ async def get_recent_council_debates():
 
 
 # ------------------------------------------------------------------------------
+# Multi-Model Pool Management Endpoints
+# ------------------------------------------------------------------------------
+
+class SaveLLMModelRequest(BaseModel):
+    id: Optional[str] = None
+    name: str
+    provider: Optional[str] = "OpenAI-Compatible"
+    base_url: str
+    model_name: str
+    api_key: Optional[str] = None
+    is_default: Optional[bool] = False
+
+
+class TestLLMModelRequest(BaseModel):
+    base_url: str
+    model_name: str
+    api_key: str
+
+
+@router.get("/llm/models")
+async def list_llm_models():
+    """Retrieve all configured LLM models with masked API keys."""
+    from app.council.llm_models import llm_model_manager
+    return llm_model_manager.get_all_models(mask_keys=True)
+
+
+@router.post("/llm/models", dependencies=[Depends(verify_admin_session)])
+async def save_llm_model(req: SaveLLMModelRequest):
+    """Add or update an LLM model entry in the pool."""
+    from app.council.llm_models import llm_model_manager
+    saved = llm_model_manager.save_model(req.model_dump())
+    return {"status": "success", "message": f"模型「{saved.get('name')}」配置已保存", "model": saved}
+
+
+@router.delete("/llm/models/{model_id}", dependencies=[Depends(verify_admin_session)])
+async def delete_llm_model(model_id: str):
+    """Delete a model entry from the pool."""
+    from app.council.llm_models import llm_model_manager
+    ok = llm_model_manager.delete_model(model_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="未找到该模型")
+    return {"status": "success", "message": "模型已成功删除"}
+
+
+@router.post("/llm/models/test", dependencies=[Depends(verify_admin_session)])
+async def test_llm_model(req: TestLLMModelRequest):
+    """Test connectivity to an OpenAI-compatible endpoint."""
+    from app.council.llm_models import llm_model_manager
+    ok, msg = await llm_model_manager.test_connection(req.base_url, req.model_name, req.api_key)
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"status": "success", "message": msg}
+
+
+# ------------------------------------------------------------------------------
 # Telegram Bot Testing & Webhook Dispatcher
 # ------------------------------------------------------------------------------
 
