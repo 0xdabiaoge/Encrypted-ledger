@@ -419,7 +419,12 @@
                 <p class="text-[11px] text-gray-400">4+1 对冲基金席位加权研判与 CIO 终审裁决</p>
               </div>
             </div>
-            <span class="text-[11px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded font-mono">COUNCIL PRO</span>
+            <div class="flex items-center space-x-2">
+              <button type="button" onclick="triggerSimulateCycle()" class="px-2.5 py-1 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold transition flex items-center space-x-1 shadow-sm">
+                <span>⚡ 模拟盘研判实测</span>
+              </button>
+              <span class="text-[11px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded font-mono">COUNCIL PRO</span>
+            </div>
           </div>
 
           <!-- Council Debate Container -->
@@ -963,6 +968,9 @@
                   <option value="demo">模拟盘 (Demo)</option>
                   <option value="live">实盘交易 (Live)</option>
                 </select>
+                <button type="button" onclick="testOKXConnection()" class="px-2.5 py-1 rounded bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-xs font-bold transition">
+                  ⚡ 测试 OKX 连接
+                </button>
               </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -2734,6 +2742,64 @@
         }
       } catch (e) {
         alert('测试请求异常: ' + e);
+      }
+    }
+
+    async function testOKXConnection() {
+      const apiKey = document.getElementById('cfg-okx-api-key').value.trim();
+      const secretKey = document.getElementById('cfg-okx-secret-key').value.trim();
+      const passphrase = document.getElementById('cfg-okx-passphrase').value.trim();
+      const env = document.getElementById('cfg-okx-env').value;
+
+      alert('正在检测 OKX 账户连通性与资产余额，请稍候...');
+      try {
+        const payload = { env };
+        if (apiKey) payload.api_key = apiKey;
+        if (secretKey) payload.secret_key = secretKey;
+        if (passphrase) payload.passphrase = passphrase;
+
+        const res = await fetch(`${API_BASE}/system/exchanges/okx/test`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          if (data.status === 'success') {
+            alert('🟢 OKX 模拟盘连通正常！\n\n' + data.message);
+          } else {
+            alert('ℹ️ ' + data.message);
+          }
+          if (typeof fetchPositions === 'function') fetchPositions();
+        } else {
+          alert('🔴 OKX 连通测试失败:\n\n' + (data.detail || '未知错误'));
+        }
+      } catch (e) {
+        alert('测试请求异常: ' + e);
+      }
+    }
+
+    async function triggerSimulateCycle(sym = 'BTC') {
+      alert(`🚀 正在发起【${sym}】模拟盘投委会全流程研判与模拟撮合周期，请稍候...`);
+      try {
+        const res = await fetch(`${API_BASE}/trading/simulate-cycle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ symbol: sym })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          const d = data.latest_council_debate;
+          const debateTxt = d ? `\n\n【CIO 终审裁决】: ${d.action || 'HOLD'} (置信度: ${d.confidence || 0}%)\n【裁决摘要】: ${d.consensus_summary || ''}` : '';
+          alert(`✅ 模拟盘研判与执行测试成功！${debateTxt}`);
+          if (typeof fetchPositions === 'function') fetchPositions();
+          if (typeof fetchCouncilDebates === 'function') fetchCouncilDebates();
+          if (typeof fetchLedgerEntries === 'function') fetchLedgerEntries();
+        } else {
+          alert('🔴 模拟研判测试未通过: ' + (data.detail || '未知错误'));
+        }
+      } catch (e) {
+        alert('模拟研判请求异常: ' + e);
       }
     }
 

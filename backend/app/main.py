@@ -26,6 +26,8 @@ async def lifespan(app: FastAPI):
     # Startup Sequence
     logger.info("Initializing Encrypted Ledger persistence layer...")
     await init_db()
+    from app.core.credentials_store import load_persisted_credentials
+    load_persisted_credentials()
 
     # Create default admin user if none exists
     async with async_session_factory() as session:

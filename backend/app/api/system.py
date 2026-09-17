@@ -62,58 +62,110 @@ class UpdateCredentialsRequest(BaseModel):
 
 @router.post("/credentials", dependencies=[Depends(verify_admin_session)])
 async def update_credentials(req: UpdateCredentialsRequest):
-    """Update OKX, Binance, LLM, and Telegram Bot credentials dynamically."""
+    """Update OKX, Binance, Gate, LLM, and Telegram Bot credentials dynamically & persistently."""
+    from app.core.credentials_store import save_persisted_credentials
+    persisted = {}
+
     if req.okx_env:
         settings.OKX_ENV = req.okx_env.lower()
+        persisted["okx_env"] = settings.OKX_ENV
     if req.okx_api_key is not None:
+        key_val = req.okx_api_key.strip()
         if settings.OKX_ENV == "demo":
-            settings.OKX_DEMO_API_KEY = req.okx_api_key
+            settings.OKX_DEMO_API_KEY = key_val
+            persisted["okx_demo_api_key"] = key_val
         else:
-            settings.OKX_LIVE_API_KEY = req.okx_api_key
+            settings.OKX_LIVE_API_KEY = key_val
+            persisted["okx_live_api_key"] = key_val
+        # Fallback sync
+        if not settings.OKX_DEMO_API_KEY:
+            settings.OKX_DEMO_API_KEY = key_val
+            persisted["okx_demo_api_key"] = key_val
+        if not settings.OKX_LIVE_API_KEY:
+            settings.OKX_LIVE_API_KEY = key_val
+            persisted["okx_live_api_key"] = key_val
+
     if req.okx_secret_key is not None:
+        sec_val = req.okx_secret_key.strip()
         if settings.OKX_ENV == "demo":
-            settings.OKX_DEMO_SECRET_KEY = req.okx_secret_key
+            settings.OKX_DEMO_SECRET_KEY = sec_val
+            persisted["okx_demo_secret_key"] = sec_val
         else:
-            settings.OKX_LIVE_SECRET_KEY = req.okx_secret_key
+            settings.OKX_LIVE_SECRET_KEY = sec_val
+            persisted["okx_live_secret_key"] = sec_val
+        # Fallback sync
+        if not settings.OKX_DEMO_SECRET_KEY:
+            settings.OKX_DEMO_SECRET_KEY = sec_val
+            persisted["okx_demo_secret_key"] = sec_val
+        if not settings.OKX_LIVE_SECRET_KEY:
+            settings.OKX_LIVE_SECRET_KEY = sec_val
+            persisted["okx_live_secret_key"] = sec_val
+
     if req.okx_passphrase is not None:
+        pass_val = req.okx_passphrase.strip()
         if settings.OKX_ENV == "demo":
-            settings.OKX_DEMO_PASSPHRASE = req.okx_passphrase
+            settings.OKX_DEMO_PASSPHRASE = pass_val
+            persisted["okx_demo_passphrase"] = pass_val
         else:
-            settings.OKX_LIVE_PASSPHRASE = req.okx_passphrase
+            settings.OKX_LIVE_PASSPHRASE = pass_val
+            persisted["okx_live_passphrase"] = pass_val
+        # Fallback sync
+        if not settings.OKX_DEMO_PASSPHRASE:
+            settings.OKX_DEMO_PASSPHRASE = pass_val
+            persisted["okx_demo_passphrase"] = pass_val
+        if not settings.OKX_LIVE_PASSPHRASE:
+            settings.OKX_LIVE_PASSPHRASE = pass_val
+            persisted["okx_live_passphrase"] = pass_val
 
     if req.binance_env:
         settings.BINANCE_ENV = req.binance_env.lower()
+        persisted["binance_env"] = settings.BINANCE_ENV
     if req.binance_api_key is not None:
+        b_key = req.binance_api_key.strip()
         if settings.BINANCE_ENV == "demo":
-            settings.BINANCE_DEMO_API_KEY = req.binance_api_key
+            settings.BINANCE_DEMO_API_KEY = b_key
+            persisted["binance_demo_api_key"] = b_key
         else:
-            settings.BINANCE_LIVE_API_KEY = req.binance_api_key
+            settings.BINANCE_LIVE_API_KEY = b_key
+            persisted["binance_live_api_key"] = b_key
     if req.binance_secret_key is not None:
+        b_sec = req.binance_secret_key.strip()
         if settings.BINANCE_ENV == "demo":
-            settings.BINANCE_DEMO_SECRET_KEY = req.binance_secret_key
+            settings.BINANCE_DEMO_SECRET_KEY = b_sec
+            persisted["binance_demo_secret_key"] = b_sec
         else:
-            settings.BINANCE_LIVE_SECRET_KEY = req.binance_secret_key
+            settings.BINANCE_LIVE_SECRET_KEY = b_sec
+            persisted["binance_live_secret_key"] = b_sec
 
     if req.gate_env:
         settings.GATE_ENV = req.gate_env.lower()
+        persisted["gate_env"] = settings.GATE_ENV
     if req.gate_api_key is not None:
         settings.GATE_API_KEY = req.gate_api_key.strip()
+        persisted["gate_api_key"] = settings.GATE_API_KEY
     if req.gate_secret_key is not None:
         settings.GATE_SECRET_KEY = req.gate_secret_key.strip()
+        persisted["gate_secret_key"] = settings.GATE_SECRET_KEY
 
     if req.llm_api_key is not None:
-        settings.LLM_API_KEY = req.llm_api_key
+        settings.LLM_API_KEY = req.llm_api_key.strip()
+        persisted["llm_api_key"] = settings.LLM_API_KEY
     if req.llm_base_url is not None:
-        settings.LLM_BASE_URL = req.llm_base_url
+        settings.LLM_BASE_URL = req.llm_base_url.strip()
+        persisted["llm_base_url"] = settings.LLM_BASE_URL
     if req.llm_model is not None:
-        settings.LLM_MODEL = req.llm_model
+        settings.LLM_MODEL = req.llm_model.strip()
+        persisted["llm_model"] = settings.LLM_MODEL
 
     if req.telegram_bot_token is not None:
         settings.TELEGRAM_BOT_TOKEN = req.telegram_bot_token.strip()
+        persisted["telegram_bot_token"] = settings.TELEGRAM_BOT_TOKEN
     if req.telegram_admin_chat_id is not None:
         settings.TELEGRAM_ADMIN_CHAT_ID = req.telegram_admin_chat_id.strip()
+        persisted["telegram_admin_chat_id"] = settings.TELEGRAM_ADMIN_CHAT_ID
 
-    return {"status": "success", "message": "系统与外部服务凭证已动态更新生效"}
+    save_persisted_credentials(persisted)
+    return {"status": "success", "message": "系统与外部服务凭证已动态更新并安全持久化"}
 
 
 def mask_secret(s: str) -> str:
@@ -127,17 +179,73 @@ def mask_secret(s: str) -> str:
 @router.get("/credentials", dependencies=[Depends(verify_admin_session)])
 async def get_credentials():
     """Retrieve masked credentials overview for admin console."""
+    okx_key = settings.OKX_LIVE_API_KEY if settings.OKX_ENV == "live" else (settings.OKX_DEMO_API_KEY or settings.OKX_LIVE_API_KEY)
+    bin_key = settings.BINANCE_LIVE_API_KEY if settings.BINANCE_ENV == "live" else settings.BINANCE_DEMO_API_KEY
     return {
         "okx_env": settings.OKX_ENV,
-        "okx_api_key_masked": mask_secret(settings.OKX_LIVE_API_KEY if settings.OKX_ENV == "live" else settings.OKX_DEMO_API_KEY),
+        "okx_api_key_masked": mask_secret(okx_key),
         "binance_env": settings.BINANCE_ENV,
-        "binance_api_key_masked": mask_secret(settings.BINANCE_LIVE_API_KEY if settings.BINANCE_ENV == "live" else settings.BINANCE_DEMO_API_KEY),
+        "binance_api_key_masked": mask_secret(bin_key),
+        "gate_env": settings.GATE_ENV,
+        "gate_api_key_masked": mask_secret(settings.GATE_API_KEY),
         "llm_base_url": settings.LLM_BASE_URL,
         "llm_model": settings.LLM_MODEL,
         "llm_key_masked": mask_secret(settings.LLM_API_KEY),
         "telegram_bot_token_masked": mask_secret(settings.TELEGRAM_BOT_TOKEN),
         "telegram_admin_chat_id": settings.TELEGRAM_ADMIN_CHAT_ID or settings.TELEGRAM_CHAT_ID or ""
     }
+
+
+class TestOKXCredentialsRequest(BaseModel):
+    env: Optional[str] = None
+    api_key: Optional[str] = None
+    secret_key: Optional[str] = None
+    passphrase: Optional[str] = None
+
+
+@router.post("/exchanges/okx/test", dependencies=[Depends(verify_admin_session)])
+async def test_okx_credentials(req: Optional[TestOKXCredentialsRequest] = None):
+    """Diagnose and verify OKX API connectivity across demo and live environments."""
+    from app.exchanges.okx import OKXAdapter
+
+    api_key = (req.api_key or "").strip() if (req and req.api_key) else (settings.OKX_DEMO_API_KEY or settings.OKX_LIVE_API_KEY)
+    sec_key = (req.secret_key or "").strip() if (req and req.secret_key) else (settings.OKX_DEMO_SECRET_KEY or settings.OKX_LIVE_SECRET_KEY)
+    passphrase = (req.passphrase or "").strip() if (req and req.passphrase) else (settings.OKX_DEMO_PASSPHRASE or settings.OKX_LIVE_PASSPHRASE)
+
+    if not api_key or not sec_key or not passphrase:
+        raise HTTPException(status_code=400, detail="未检测到完整的 OKX API Key / Secret Key / Passphrase，请先填写并保存")
+
+    # 1. Test Demo Trading
+    ok_demo, msg_demo, data_demo = await OKXAdapter.test_connectivity(api_key, sec_key, passphrase, is_demo=True)
+    if ok_demo:
+        eq = data_demo.get("total_equity_usd", 0.0)
+        return {
+            "status": "success",
+            "matched_env": "demo",
+            "total_equity_usd": eq,
+            "message": f"OKX 官方模拟盘 (Demo) 连通测试通过！读取到模拟盘总资产: {eq:.2f} USDT"
+        }
+
+    # 2. Test Live Trading
+    ok_live, msg_live, data_live = await OKXAdapter.test_connectivity(api_key, sec_key, passphrase, is_demo=False)
+    if ok_live:
+        eq = data_live.get("total_equity_usd", 0.0)
+        return {
+            "status": "warning",
+            "matched_env": "live",
+            "total_equity_usd": eq,
+            "message": (
+                f"鉴权通过！检测到当前 API Key 属于【OKX 实盘账户】（非官方模拟盘专属 Key）。\n"
+                f"• 读取到实盘总资产: {eq:.2f} USDT\n\n"
+                "💡 模拟盘测试说明：\n"
+                "1. OKX 官方要求：模拟盘必须使用在 OKX「模拟交易」页面单独创建的专属 API Key；\n"
+                "2. 若您希望对接 OKX 官方模拟盘服务器，请前往 OKX 网页端切换至「模拟交易」后重新生成一组模拟盘 API Key 并填入；\n"
+                "3. 本系统已自带「高精度虚拟撮合沙盒」，即使无官方模拟盘 Key，系统也能基于 OKX 实时行情开展完整的投委会研判与无风险模拟盘建仓测试！"
+            )
+        }
+
+    # 3. Both failed
+    raise HTTPException(status_code=400, detail=f"OKX 连通测试未通过:\n• 模拟盘模式返回: {msg_demo}\n• 实盘模式返回: {msg_live}")
 
 
 # ------------------------------------------------------------------------------

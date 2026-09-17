@@ -10,6 +10,7 @@ Simulates a Tier-1 quantitative hedge fund investment committee:
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import Any, Dict, List, Optional
 from app.core.config import settings
@@ -17,6 +18,22 @@ from app.core.logging import logger
 from app.council.council_policy import council_policy_manager
 from app.council.llm_gateway import llm_gateway
 from app.risk.constants import dump_risk_constants_summary
+
+
+def extract_json_payload(raw: str) -> Dict[str, Any]:
+    """Robustly extract and parse JSON from LLM text responses, handling markdown blocks."""
+    text = (raw or "").strip()
+    if not text:
+        return {}
+    if "```" in text:
+        m = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.IGNORECASE)
+        if m:
+            text = m.group(1).strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        text = text[start:end+1]
+    return json.loads(text)
 
 
 class InvestmentCouncilDesk:
@@ -301,7 +318,7 @@ class InvestmentCouncilDesk:
                         {"role": "user", "content": u_content}
                     ]
                     raw_s = await llm_gateway.generate_with_model_id(model_id, s_messages, temperature=s_temp)
-                    parsed_s = json.loads(raw_s)
+                    parsed_s = extract_json_payload(raw_s)
                     if parsed_s.get("action") in ("BUY", "SELL", "HOLD"):
                         op["action"] = parsed_s["action"]
                     if "confidence" in parsed_s and parsed_s["confidence"] is not None:
@@ -353,7 +370,7 @@ class InvestmentCouncilDesk:
                     {"role": "user", "content": user_content}
                 ]
                 raw_resp = await llm_gateway.generate_with_model_id(cio_model_id, messages, temperature=float(cio_cfg.get("temperature", 0.1)))
-                decision = json.loads(raw_resp)
+                decision = extract_json_payload(raw_resp)
                 decision["source"] = f"multi_agent_llm_council ({cio_model_id or 'default'})"
                 decision["debate_transcript"] = seat_opinions
                 decision["timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")

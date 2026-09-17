@@ -207,3 +207,34 @@ async def list_position_shares(session_payload=Depends(get_optional_session)):
     username = session_payload.get("username") if session_payload else None
     return {"status": "success", "shares": position_share_manager.list_shares(username)}
 
+
+class SimulateCycleRequest(BaseModel):
+    symbol: Optional[str] = "BTC"
+
+
+@router.post("/simulate-cycle", dependencies=[Depends(verify_admin_session)])
+async def trigger_simulated_trade_cycle(req: Optional[SimulateCycleRequest] = None):
+    """
+    Manually trigger an on-demand simulated trading cycle:
+    1. Fetches real-time market data & orderbook from OKX;
+    2. Runs 4+1 Multi-Agent AI Council deliberation (Trend, Momentum, Quant, Macro, CIO);
+    3. Evaluates 17-pillar risk interceptors;
+    4. Simulates trade execution and records into double-entry ledger & audit database.
+    """
+    from app.scheduler.tasks import orchestrator
+    from app.council.council_desk import council_desk
+
+    sym = (req.symbol or "BTC").upper() if req else "BTC"
+    
+    # Execute trade cycle
+    results = await orchestrator.execute_trade_cycle()
+    debates = council_desk.get_latest_debate_history(limit=5)
+    matched_debate = next((d for d in reversed(debates) if d.get("symbol") == sym), debates[-1] if debates else None)
+
+    return {
+        "status": "success",
+        "message": f"标的【{sym}】模拟盘投委会研判与执行周期已成功执行！",
+        "scanned_results": results,
+        "latest_council_debate": matched_debate
+    }
+

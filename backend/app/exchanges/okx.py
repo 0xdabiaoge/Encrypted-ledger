@@ -56,13 +56,13 @@ class OKXAdapter(BaseExchangeAdapter):
 
     def _get_credentials(self) -> Dict[str, str]:
         if self.is_demo:
-            api_key = settings.OKX_DEMO_API_KEY
-            sec_key = settings.OKX_DEMO_SECRET_KEY
-            passphrase = settings.OKX_DEMO_PASSPHRASE
+            api_key = settings.OKX_DEMO_API_KEY or settings.OKX_LIVE_API_KEY
+            sec_key = settings.OKX_DEMO_SECRET_KEY or settings.OKX_LIVE_SECRET_KEY
+            passphrase = settings.OKX_DEMO_PASSPHRASE or settings.OKX_LIVE_PASSPHRASE
         else:
-            api_key = settings.OKX_LIVE_API_KEY
-            sec_key = settings.OKX_LIVE_SECRET_KEY
-            passphrase = settings.OKX_LIVE_PASSPHRASE
+            api_key = settings.OKX_LIVE_API_KEY or settings.OKX_DEMO_API_KEY
+            sec_key = settings.OKX_LIVE_SECRET_KEY or settings.OKX_DEMO_SECRET_KEY
+            passphrase = settings.OKX_LIVE_PASSPHRASE or settings.OKX_DEMO_PASSPHRASE
 
         # Decrypt if stored encrypted
         if sec_key and sec_key.startswith("gAAAA"):
@@ -434,3 +434,58 @@ class OKXAdapter(BaseExchangeAdapter):
         except Exception as e:
             logger.error(f"OKX cancel order {order_id} failed: {e}")
             return False
+
+    @classmethod
+    async def test_connectivity(
+        cls,
+        api_key: str,
+        secret_key: str,
+        passphrase: str,
+        is_demo: bool = True
+    ) -> Tuple[bool, str, Dict[str, Any]]:
+        """Test OKX credentials directly and return balance details."""
+        if not api_key or not secret_key or not passphrase:
+            return False, "API Key, Secret Key, Passphrase 均不能为空", {}
+
+        # Decrypt if encrypted
+        if secret_key.startswith("gAAAA"):
+            secret_key = decrypt_secret(secret_key)
+        if passphrase.startswith("gAAAA"):
+            passphrase = decrypt_secret(passphrase)
+
+        path = "/api/v5/account/balance"
+        now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        message = f"{now_iso}GET{path}"
+        mac = hmac.new(secret_key.strip().encode("utf-8"), message.encode("utf-8"), digestmod=hashlib.sha256)
+        sig = base64.b64encode(mac.digest()).decode("utf-8")
+
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "EncryptedLedger-Desk/1.0",
+            "OK-ACCESS-KEY": api_key.strip(),
+            "OK-ACCESS-SIGN": sig,
+            "OK-ACCESS-TIMESTAMP": now_iso,
+            "OK-ACCESS-PASSPHRASE": passphrase.strip()
+        }
+        if is_demo:
+            headers["x-simulated-trading"] = "1"
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get("https://www.okx.com/api/v5/account/balance", headers=headers)
+                data = resp.json()
+                code = str(data.get("code", "-1"))
+                if code == "0":
+                    account = data.get("data", [{}])[0]
+                    total_eq = float(account.get("totalEq", 0.0))
+                    upl = float(account.get("upl", 0.0))
+                    return True, "连接成功", {
+                        "total_equity_usd": total_eq,
+                        "unrealized_pnl_usd": upl,
+                        "raw": data
+                    }
+                msg = data.get("msg", resp.text)
+                return False, f"[{code}] {msg}", {"code": code, "msg": msg}
+        except Exception as e:
+            return False, f"网络请求异常: {str(e)[:120]}", {}

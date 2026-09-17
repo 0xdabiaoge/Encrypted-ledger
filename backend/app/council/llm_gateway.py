@@ -65,7 +65,10 @@ class LLMGateway:
             if resp.status_code != 200:
                 raise RuntimeError(f"LLM Gateway Error [{resp.status_code}]: {resp.text}")
             data = resp.json()
-            content = data["choices"][0]["message"]["content"]
+            msg = data.get("choices", [{}])[0].get("message", {})
+            content = msg.get("content") or ""
+            if not content and msg.get("reasoning_content"):
+                content = msg.get("reasoning_content")
             return content.strip()
 
     async def generate_with_model_id(
