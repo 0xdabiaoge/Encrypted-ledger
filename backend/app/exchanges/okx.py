@@ -30,6 +30,15 @@ from app.exchanges.base import (
 )
 
 
+def safe_float(val: Any, default: float = 0.0) -> float:
+    if val is None or val == "":
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
 class OKXAdapter(BaseExchangeAdapter):
     BASE_HOSTS = ["https://www.okx.com"]
 
@@ -284,46 +293,64 @@ class OKXAdapter(BaseExchangeAdapter):
         return {"ccy": ccy, "long_short_ratio": 1.0, "bull_ratio_pct": 50.0, "bear_ratio_pct": 50.0, "label": "neutral"}
 
     async def get_account_balance(self) -> AccountBalance:
-        data = await self._request("GET", "/api/v5/account/balance", params={"ccy": "USDT"}, auth_required=True)
-        if not data:
-            return AccountBalance(venue="okx", total_equity_usd=0.0, available_usd=0.0, margin_used_usd=0.0, unrealized_pnl_usd=0.0, timestamp_ms=int(time.time()*1000))
-        acc = data[0]
-        total_eq = float(acc.get("totalEq", 0.0))
-        details = acc.get("details", [])
-        avail = 0.0
-        used_margin = 0.0
-        upl = float(acc.get("upl", 0.0))
-        for d in details:
-            if d.get("ccy") == "USDT":
-                avail = float(d.get("availEq") or d.get("availBal") or 0.0)
-                used_margin = float(d.get("margin", 0.0)) or float(d.get("frozenBal", 0.0))
-                break
-        return AccountBalance(
-            venue="okx",
-            total_equity_usd=total_eq,
-            available_usd=avail,
-            margin_used_usd=used_margin,
-            unrealized_pnl_usd=upl,
-            timestamp_ms=int(acc.get("uTime", time.time() * 1000))
-        )
+        try:
+            data = await self._request("GET", "/api/v5/account/balance", params={"ccy": "USDT"}, auth_required=True)
+            if not data:
+                return AccountBalance(venue="okx", total_equity_usd=0.0, available_usd=0.0, margin_used_usd=0.0, unrealized_pnl_usd=0.0, timestamp_ms=int(time.time()*1000))
+            acc = data[0]
+            total_eq = safe_float(acc.get("totalEq"))
+            details = acc.get("details", [])
+            avail = 0.0
+            used_margin = 0.0
+            upl = safe_float(acc.get("upl"))
+            for d in details:
+                if d.get("ccy") == "USDT":
+                    avail = safe_float(d.get("availEq") or d.get("availBal"))
+                    used_margin = safe_float(d.get("margin")) or safe_float(d.get("frozenBal"))
+                    break
+            return AccountBalance(
+                venue="okx",
+                total_equity_usd=total_eq,
+                available_usd=avail,
+                margin_used_usd=used_margin,
+                unrealized_pnl_usd=upl,
+                timestamp_ms=int(safe_float(acc.get("uTime"), time.time() * 1000))
+            )
+        except Exception as e:
+            if self.is_demo and "50101" in str(e):
+                logger.info("OKX Live key detected in Demo mode. Providing virtual paper wallet balance (100,000 USDT).")
+                return AccountBalance(
+                    venue="okx",
+                    total_equity_usd=100000.0,
+                    available_usd=100000.0,
+                    margin_used_usd=0.0,
+                    unrealized_pnl_usd=0.0,
+                    timestamp_ms=int(time.time()*1000)
+                )
+            raise e
 
     async def get_positions(self) -> List[PositionInfo]:
-        data = await self._request("GET", "/api/v5/account/positions", params={"instType": "SWAP"}, auth_required=True)
+        try:
+            data = await self._request("GET", "/api/v5/account/positions", params={"instType": "SWAP"}, auth_required=True)
+        except Exception as e:
+            if self.is_demo and "50101" in str(e):
+                return []
+            raise e
         positions = []
         for p in data:
-            sz = float(p.get("pos", 0.0))
+            sz = safe_float(p.get("pos"))
             if abs(sz) <= 0.0:
                 continue
             pos_side = p.get("posSide", "net")
             side = "long" if (pos_side == "long" or (pos_side == "net" and sz > 0)) else "short"
-            notional = float(p.get("notionalUsd", 0.0))
-            entry_px = float(p.get("avgPx", 0.0))
-            mark_px = float(p.get("markPx", 0.0))
-            upl = float(p.get("upl", 0.0))
-            upl_ratio = float(p.get("uplRatio", 0.0))
-            lever = float(p.get("lever", 1.0))
-            margin = float(p.get("margin", 0.0))
-            liq_px = float(p.get("liqPx", 0.0))
+            notional = safe_float(p.get("notionalUsd"))
+            entry_px = safe_float(p.get("avgPx"))
+            mark_px = safe_float(p.get("markPx"))
+            upl = safe_float(p.get("upl"))
+            upl_ratio = safe_float(p.get("uplRatio"))
+            lever = safe_float(p.get("lever", 1.0), 1.0)
+            margin = safe_float(p.get("margin"))
+            liq_px = safe_float(p.get("liqPx"))
             
             positions.append(PositionInfo(
                 venue="okx",
@@ -409,8 +436,20 @@ class OKXAdapter(BaseExchangeAdapter):
         if attached_algos:
             payload["attachAlgoOrds"] = attached_algos
 
-        res = await self._request("POST", "/api/v5/trade/order", body=payload, auth_required=True)
-        return {"order_id": res[0].get("ordId") if res else "", "cl_ord_id": cl_ord_id, "raw": res}
+        try:
+            res = await self._request("POST", "/api/v5/trade/order", body=payload, auth_required=True)
+            return {"order_id": res[0].get("ordId") if res else "", "cl_ord_id": cl_ord_id, "raw": res}
+        except Exception as e:
+            if self.is_demo and "50101" in str(e):
+                import uuid
+                logger.info(f"OKX Live Key detected in Demo mode. Intercepting order {cl_ord_id} to local paper sandbox fill.")
+                return {
+                    "order_id": f"SIM_OKX_{uuid.uuid4().hex[:8]}",
+                    "cl_ord_id": cl_ord_id,
+                    "status": "filled",
+                    "simulated": True
+                }
+            raise e
 
     async def close_position(self, symbol: str, side: str, size: Optional[float] = None) -> Dict[str, Any]:
         inst_id = self._to_inst_id(symbol)
@@ -478,8 +517,8 @@ class OKXAdapter(BaseExchangeAdapter):
                 code = str(data.get("code", "-1"))
                 if code == "0":
                     account = data.get("data", [{}])[0]
-                    total_eq = float(account.get("totalEq", 0.0))
-                    upl = float(account.get("upl", 0.0))
+                    total_eq = safe_float(account.get("totalEq"))
+                    upl = safe_float(account.get("upl"))
                     return True, "连接成功", {
                         "total_equity_usd": total_eq,
                         "unrealized_pnl_usd": upl,

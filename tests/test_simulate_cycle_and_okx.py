@@ -82,7 +82,16 @@ def test_okx_connectivity_diagnostics():
         assert res_live.status_code == 200
         data_live = res_live.json()
         assert data_live["matched_env"] == "live"
-        assert "OKX 实盘账户" in data_live["message"]
+        assert "OKX 实盘" in data_live["message"]
+
+
+def test_safe_float():
+    from app.exchanges.okx import safe_float
+    assert safe_float("") == 0.0
+    assert safe_float(None) == 0.0
+    assert safe_float("123.45") == 123.45
+    assert safe_float(0.000108) == 0.000108
+    assert safe_float("invalid") == 0.0
 
 
 def test_simulate_cycle_endpoint():
@@ -96,6 +105,8 @@ def test_simulate_cycle_endpoint():
 
 
 if __name__ == "__main__":
+    test_safe_float()
+    print("✓ safe_float passed")
     test_extract_json_payload()
     print("✓ extract_json_payload passed")
     test_credentials_persistence()

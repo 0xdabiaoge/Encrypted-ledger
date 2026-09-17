@@ -231,16 +231,21 @@ async def test_okx_credentials(req: Optional[TestOKXCredentialsRequest] = None):
     if ok_live:
         eq = data_live.get("total_equity_usd", 0.0)
         return {
-            "status": "warning",
+            "status": "success",
             "matched_env": "live",
             "total_equity_usd": eq,
             "message": (
-                f"鉴权通过！检测到当前 API Key 属于【OKX 实盘账户】（非官方模拟盘专属 Key）。\n"
-                f"• 读取到实盘总资产: {eq:.2f} USDT\n\n"
-                "💡 模拟盘测试说明：\n"
-                "1. OKX 官方要求：模拟盘必须使用在 OKX「模拟交易」页面单独创建的专属 API Key；\n"
-                "2. 若您希望对接 OKX 官方模拟盘服务器，请前往 OKX 网页端切换至「模拟交易」后重新生成一组模拟盘 API Key 并填入；\n"
-                "3. 本系统已自带「高精度虚拟撮合沙盒」，即使无官方模拟盘 Key，系统也能基于 OKX 实时行情开展完整的投委会研判与无风险模拟盘建仓测试！"
+                f"OKX API 账户鉴权成功通过！\n"
+                f"• 识别环境: OKX 实盘 API Key (Live)\n"
+                f"• 账户总资产估值: {eq:.6f} USD\n\n"
+                "💡 模拟盘运行机制解答：\n"
+                "1. 为什么模拟盘模式会报 [50101]？\n"
+                "   OKX 官方 V5 接口对【实盘】与【模拟盘】API Key 进行了物理隔离。实盘生成的 API Key 无法直接调用 OKX 官方模拟盘接口（OKX 返回 50101 环境不匹配）。\n\n"
+                "2. 本系统已自动无缝适配【沙盒模拟盘 (Paper Sandbox)】：\n"
+                "   当您在系统选择【模拟盘 (Demo)】模式时，系统会自动通过此 Key 抓取 OKX 真实的毫秒级深度与实时行情，并在本地通过虚拟撮合沙盒模拟成交与复式记账！\n"
+                "   👉 行情100%真实，交易100%零风险，绝不向交易所发送实盘订单，完全不消耗实盘本金！\n\n"
+                "3. 若您希望对接 OKX 官方模拟盘服务器：\n"
+                "   请在 OKX 网页端切换到「模拟交易」后，在模拟盘的个人中心重新创建一组专属的 Demo API Key 填入即可。"
             )
         }
 

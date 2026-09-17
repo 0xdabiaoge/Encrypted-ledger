@@ -2766,7 +2766,7 @@
         const data = await res.json();
         if (res.ok) {
           if (data.status === 'success') {
-            alert('🟢 OKX 模拟盘连通正常！\n\n' + data.message);
+            alert('🟢 OKX 连通测试通过！\n\n' + data.message);
           } else {
             alert('ℹ️ ' + data.message);
           }
