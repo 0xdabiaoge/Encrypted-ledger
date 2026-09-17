@@ -227,9 +227,9 @@
     </div>
 
     <!-- Row 2: Quant Factor Matrix & Real-time Positions -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div id="main-dashboard-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Left 2 Cols: Factor Matrix & Positions -->
-      <div class="lg:col-span-2 space-y-6">
+      <div id="main-left-col" class="lg:col-span-2 space-y-6">
         <!-- Factor Matrix & Candlestick Chart Center -->
         <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg">
           <div class="flex flex-wrap items-center justify-between mb-4 gap-2">
@@ -264,6 +264,12 @@
                   <option value="agg" class="bg-dark-900 text-white">双所智能聚合 (Dual Hub)</option>
                 </select>
               </div>
+
+              <!-- Dashboard Layout Toggle: 2:1 Split vs 3:0 Panoramic -->
+              <button id="btn-toggle-layout" onclick="toggleDashboardLayout()" class="text-xs bg-dark-850 hover:bg-dark-border border border-dark-border px-2.5 py-1 rounded-lg text-gray-300 hover:text-white flex items-center space-x-1 transition cursor-pointer" title="切换全景宽屏 / 经典分栏布局">
+                <i id="icon-layout" data-lucide="columns-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span id="text-layout">经典分栏</span>
+              </button>
 
               <button onclick="openAddInstrumentModal()" class="text-xs bg-dark-850 hover:bg-dark-border border border-dark-border px-3 py-1.5 rounded-md text-emerald-400 flex items-center space-x-1 transition">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i>
@@ -308,6 +314,7 @@
                 </div>
 
                 <div class="flex items-center space-x-2 pl-2 border-l border-dark-border font-mono text-xs">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="毫秒级实时静默刷新"></span>
                   <span id="kline-current-price" class="text-lg font-bold text-emerald-400">$0.00</span>
                   <span id="kline-change-badge" class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-400">+0.00%</span>
                 </div>
@@ -355,13 +362,7 @@
             </div>
 
             <!-- Lightweight Chart Canvas Container -->
-            <div id="tv-chart-container" class="w-full h-[420px] rounded-lg overflow-hidden border border-dark-border bg-dark-900 relative">
-              <div id="kline-loading" class="absolute inset-0 flex items-center justify-center bg-dark-900/80 backdrop-blur-xs text-xs text-gray-400 z-10 hidden">
-                <div class="flex items-center space-x-2">
-                  <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-emerald-400"></i>
-                  <span>正在加载交易所毫秒级K线行情...</span>
-                </div>
-              </div>
+            <div id="tv-chart-container" class="w-full h-[450px] rounded-lg overflow-hidden border border-dark-border bg-dark-900 relative">
             </div>
           </div>
         </div>
@@ -380,7 +381,6 @@
               </button>
               <span id="pos-view-mode-badge" class="text-xs px-2 py-0.5 rounded bg-dark-850 text-gray-400 border border-dark-border">去敏展示模式</span>
             </div>
-          </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs text-gray-300">
@@ -407,7 +407,7 @@
       </div>
 
       <!-- Right 1 Col: Multi-Agent Council & Macro Feed -->
-      <div class="space-y-6">
+      <div id="main-right-col" class="space-y-6">
         <!-- Multi-Agent Council Debate Board -->
         <div class="bg-dark-card border border-dark-border rounded-xl p-5 shadow-lg flex flex-col">
           <div class="flex items-center justify-between pb-3 border-b border-dark-border">
@@ -2980,7 +2980,7 @@
         if (btnKline) btnKline.className = 'px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/40 flex items-center space-x-1 transition cursor-pointer';
         if (btnMatrix) btnMatrix.className = 'px-2.5 py-1 rounded-md text-gray-400 hover:text-gray-200 flex items-center space-x-1 transition cursor-pointer';
         populateKlineSymbolDropdown();
-        setTimeout(() => { loadKlineData(); }, 60);
+        setTimeout(() => { loadKlineData(true); }, 60);
       } else {
         matrixView?.classList.remove('hidden');
         klineView?.classList.add('hidden');
@@ -2999,7 +2999,7 @@
         fetchBatchTickers(window.currentUniverse);
       }
       if (g_current_view_mode === 'kline') {
-        loadKlineData();
+        loadKlineData(true);
       }
     }
 
@@ -3015,7 +3015,7 @@
 
     function changeKlineSymbol(sym) {
       g_kline_symbol = sym;
-      loadKlineData();
+      loadKlineData(true);
     }
 
     function showKlineForSymbol(sym) {
@@ -3037,7 +3037,7 @@
           btn.className = 'px-2 py-0.5 rounded text-gray-400 hover:text-white';
         }
       });
-      loadKlineData();
+      loadKlineData(true);
     }
 
     function toggleKlineIndicator(ind) {
@@ -3051,8 +3051,10 @@
           else legendBoll.classList.add('hidden');
         }
       }
-      loadKlineData();
+      loadKlineData(false);
     }
+
+    let g_chart_resize_observer = null;
 
     function initLightweightChart() {
       const container = document.getElementById('tv-chart-container');
@@ -3064,7 +3066,7 @@
 
       g_tv_chart = LightweightCharts.createChart(container, {
         width: container.clientWidth || 800,
-        height: 420,
+        height: 450,
         layout: {
           background: { color: '#090d14' },
           textColor: '#94a3b8'
@@ -3112,6 +3114,17 @@
       g_boll_mid_series = g_tv_chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.85)', lineWidth: 1, title: 'BOLL_MID' });
       g_boll_lower_series = g_tv_chart.addLineSeries({ color: 'rgba(59, 130, 246, 0.5)', lineWidth: 1, lineStyle: 2, title: 'BOLL_LOW' });
 
+      if (window.ResizeObserver && !g_chart_resize_observer) {
+        g_chart_resize_observer = new ResizeObserver(entries => {
+          for (let entry of entries) {
+            if (g_tv_chart && entry.contentRect.width > 0) {
+              g_tv_chart.applyOptions({ width: entry.contentRect.width });
+            }
+          }
+        });
+        g_chart_resize_observer.observe(container);
+      }
+
       window.addEventListener('resize', () => {
         if (g_tv_chart && container) {
           g_tv_chart.applyOptions({ width: container.clientWidth });
@@ -3134,11 +3147,10 @@
       });
     }
 
-    async function loadKlineData() {
+    async function loadKlineData(isInitial = false) {
       if (!g_tv_chart) initLightweightChart();
-      const loadingEl = document.getElementById('kline-loading');
-      if (loadingEl) loadingEl.classList.remove('hidden');
 
+      // Silent real-time update: No intrusive modal overlay obscuring K-line!
       try {
         const res = await fetch(`${API_BASE}/market/klines?symbol=${g_kline_symbol}&interval=${g_kline_interval}&venue=${g_current_market_venue}&limit=160`);
         if (!res.ok) throw new Error('K线接口错误');
@@ -3182,13 +3194,52 @@
             document.getElementById('kline-vol-val').innerText = `${st.total_volume.toLocaleString('en-US')} ${g_kline_symbol}`;
           }
 
-          g_tv_chart.timeScale().fitContent();
+          if (isInitial && g_tv_chart) {
+            g_tv_chart.timeScale().fitContent();
+          }
         }
       } catch (err) {
         console.warn('loadKlineData error:', err);
-      } finally {
-        if (loadingEl) loadingEl.classList.add('hidden');
       }
+    }
+
+    // =========================================================================
+    // Dashboard Layout Toggle: 2:1 Split vs 3:0 Panoramic Wide
+    // =========================================================================
+    let g_dash_layout = localStorage.getItem('el_dash_layout') || 'split';
+
+    function applyDashboardLayout() {
+      const leftCol = document.getElementById('main-left-col');
+      const rightCol = document.getElementById('main-right-col');
+      const btn = document.getElementById('btn-toggle-layout');
+      const textEl = document.getElementById('text-layout');
+      const chartContainer = document.getElementById('tv-chart-container');
+
+      if (!leftCol || !rightCol) return;
+
+      if (g_dash_layout === 'panoramic') {
+        leftCol.classList.remove('lg:col-span-2');
+        leftCol.classList.add('lg:col-span-3');
+        if (textEl) textEl.innerText = '全景宽屏';
+        if (btn) btn.className = 'text-xs bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-1 rounded-lg text-emerald-400 flex items-center space-x-1 transition cursor-pointer';
+      } else {
+        leftCol.classList.remove('lg:col-span-3');
+        leftCol.classList.add('lg:col-span-2');
+        if (textEl) textEl.innerText = '经典分栏';
+        if (btn) btn.className = 'text-xs bg-dark-850 hover:bg-dark-border border border-dark-border px-2.5 py-1 rounded-lg text-gray-300 hover:text-white flex items-center space-x-1 transition cursor-pointer';
+      }
+
+      setTimeout(() => {
+        if (g_tv_chart && chartContainer) {
+          g_tv_chart.applyOptions({ width: chartContainer.clientWidth });
+        }
+      }, 60);
+    }
+
+    function toggleDashboardLayout() {
+      g_dash_layout = (g_dash_layout === 'split') ? 'panoramic' : 'split';
+      localStorage.setItem('el_dash_layout', g_dash_layout);
+      applyDashboardLayout();
     }
 
     // =========================================================================
@@ -3352,6 +3403,7 @@
       const venueSelect = document.getElementById('select-market-venue');
       if (venueSelect) venueSelect.value = g_current_market_venue;
 
+      applyDashboardLayout();
       await initDashboard();
       await checkShareUrlParam();
       lucide.createIcons();
@@ -3365,7 +3417,7 @@
         fetchMacroNews();
         checkCircuitBreaker();
         if (g_current_view_mode === 'kline') {
-          loadKlineData();
+          loadKlineData(false);
         }
       }, 15000);
     };
