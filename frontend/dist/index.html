@@ -85,6 +85,7 @@
         <h1 class="text-lg font-bold text-white flex items-center space-x-2">
           <span>ENCRYPTED LEDGER</span>
           <span class="text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold">v2.0</span>
+          <span id="top-trading-mode-badge" class="text-[11px] px-2 py-0.5 rounded font-mono font-bold"></span>
         </h1>
         <p class="text-xs text-gray-400">OKX 与币安双所撮合 · 4+1 多智能体投委会共识 · 17项物理风控</p>
       </div>
@@ -376,14 +377,15 @@
               <h2 class="text-base font-bold text-white">双所实时存量持仓与浮盈保护 (OKX 与币安合约)</h2>
             </div>
             <div class="flex items-center space-x-2">
-              <button onclick="openManualSimOrderModal()" class="text-xs bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 px-2.5 py-1 rounded-md flex items-center space-x-1 transition font-bold shadow-sm" title="一键开启模拟多空仓位，体验真实盘口撮合、止盈止损与记账">
+              <button id="btn-manual-sim-order" onclick="openManualSimOrderModal()" class="text-xs bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 px-2.5 py-1 rounded-md flex items-center space-x-1 transition font-bold shadow-sm" title="一键开启模拟多空仓位，体验真实盘口撮合、止盈止损与记账">
                 <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
                 <span>⚡ 模拟开单一测</span>
               </button>
-              <button onclick="openDemoShareModal()" class="text-xs bg-dark-850 hover:bg-dark-border border border-emerald-500/30 text-emerald-400 px-2.5 py-1 rounded-md flex items-center space-x-1 transition" title="体验生成机构级量化收益分享海报">
+              <button id="btn-demo-share" onclick="openDemoShareModal()" class="text-xs bg-dark-850 hover:bg-dark-border border border-emerald-500/30 text-emerald-400 px-2.5 py-1 rounded-md flex items-center space-x-1 transition" title="体验生成机构级量化收益分享海报">
                 <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
                 <span>战绩海报体验</span>
               </button>
+              <span id="env-mode-badge" class="text-xs px-2.5 py-0.5 rounded font-bold border transition">--</span>
               <span id="pos-view-mode-badge" class="text-xs px-2 py-0.5 rounded bg-dark-850 text-gray-400 border border-dark-border">去敏展示模式</span>
             </div>
           </div>
@@ -424,7 +426,7 @@
               </div>
             </div>
             <div class="flex items-center space-x-2">
-              <button type="button" onclick="triggerSimulateCycle()" class="px-2.5 py-1 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold transition flex items-center space-x-1 shadow-sm">
+              <button id="btn-simulate-cycle" type="button" onclick="triggerSimulateCycle()" class="px-2.5 py-1 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold transition flex items-center space-x-1 shadow-sm">
                 <span>⚡ 模拟盘研判实测</span>
               </button>
               <span class="text-[11px] bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded font-mono">COUNCIL PRO</span>
@@ -1720,10 +1722,63 @@
 
     const API_BASE = '/api/v1';
     window.currentUserRole = 'guest';
+    window.currentTradingEnv = 'demo';
+
+    function updateTradingModeUI(env) {
+      const curEnv = (env || (document.getElementById('cfg-okx-env')?.value) || 'demo').toLowerCase();
+      window.currentTradingEnv = curEnv;
+      const isDemo = curEnv === 'demo';
+
+      const simOrderBtn = document.getElementById('btn-manual-sim-order');
+      const simCycleBtn = document.getElementById('btn-simulate-cycle');
+      const demoShareBtn = document.getElementById('btn-demo-share');
+      const envBadge = document.getElementById('env-mode-badge');
+      const topBadge = document.getElementById('top-trading-mode-badge');
+
+      if (simOrderBtn) {
+        if (isDemo) simOrderBtn.classList.remove('hidden');
+        else simOrderBtn.classList.add('hidden');
+      }
+      if (simCycleBtn) {
+        if (isDemo) simCycleBtn.classList.remove('hidden');
+        else simCycleBtn.classList.add('hidden');
+      }
+      if (demoShareBtn) {
+        if (isDemo) demoShareBtn.classList.remove('hidden');
+        else demoShareBtn.classList.add('hidden');
+      }
+
+      if (envBadge) {
+        if (isDemo) {
+          envBadge.className = 'text-xs px-2.5 py-0.5 rounded font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center space-x-1';
+          envBadge.innerHTML = '<span>🎮 模拟盘模式 (DEMO)</span>';
+        } else {
+          envBadge.className = 'text-xs px-2.5 py-0.5 rounded font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1';
+          envBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>🔴 实盘交易模式 (LIVE)</span>';
+        }
+      }
+
+      if (topBadge) {
+        if (isDemo) {
+          topBadge.className = 'text-[11px] px-2 py-0.5 rounded font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+          topBadge.innerHTML = '🎮 模拟盘 (DEMO)';
+        } else {
+          topBadge.className = 'text-[11px] px-2 py-0.5 rounded font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1';
+          topBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>🔴 实盘 (LIVE)</span>';
+        }
+      }
+    }
 
     // 1. Initial Load
     async function initDashboard() {
       await checkAuth();
+      try {
+        const healthRes = await fetch(`${API_BASE}/system/health`);
+        if (healthRes.ok) {
+          const hData = await healthRes.json();
+          if (hData.okx_env) updateTradingModeUI(hData.okx_env);
+        }
+      } catch (e) {}
       await Promise.all([
         fetchSummary(),
         fetchUniverseAndFactors(),
@@ -1979,6 +2034,7 @@
 
         if (balRes.ok) {
           const bal = await balRes.json();
+          if (bal.okx_env) updateTradingModeUI(bal.okx_env);
           if (bal.is_masked) {
             document.getElementById('stat-total-equity').innerText = bal.display_scale || '★ 100,000+ USDT';
             document.getElementById('stat-equity-sub').innerHTML = '<span>OKX: <b class="text-emerald-400">实时正常</b></span><span>Binance: <b class="text-amber-400">实时正常</b></span>';
@@ -2200,13 +2256,17 @@
         }
 
         const data = await res.json();
+        if (data.okx_env) updateTradingModeUI(data.okx_env);
         if (!data.positions || data.positions.length === 0) {
+          const emptySubHint = (data.okx_env === 'live')
+            ? '<div class="text-xs text-gray-500">智能体正在 7x24 小时实时监控盘口，出现高胜率机会时将自主开仓</div>'
+            : '<div class="text-xs text-gray-500">点击右上角「战绩海报体验」按钮，可一键体验生成机构级量化战绩卡片</div>';
           tbody.innerHTML = `
             <tr>
               <td colspan="8" class="py-6 text-center text-gray-400">
                 <div class="space-y-1.5">
                   <div class="text-gray-300 font-medium">当前全所无在途持仓（资金 100% 安全闲置待机中）</div>
-                  <div class="text-xs text-gray-500">点击右上角「战绩海报体验」按钮，可一键体验生成机构级量化战绩卡片</div>
+                  ${emptySubHint}
                 </div>
               </td>
             </tr>
@@ -2475,6 +2535,10 @@
     }
 
     function openManualSimOrderModal() {
+      if (window.currentTradingEnv === 'live') {
+        alert('⚠️ 当前系统处于【实盘交易模式 (LIVE)】，模拟盘开仓功能已安全锁定！如需体验模拟盘，请先在管理后台切换运行模式为【模拟盘 (Demo)】。');
+        return;
+      }
       document.getElementById('modal-manual-sim-order').classList.remove('hidden');
       if (window.lucide) lucide.createIcons();
     }
@@ -2789,6 +2853,7 @@
         if (!res.ok) return;
         const data = await res.json();
         document.getElementById('cfg-okx-env').value = data.okx_env || 'demo';
+        updateTradingModeUI(data.okx_env || 'demo');
         document.getElementById('cfg-binance-env').value = data.binance_env || 'demo';
         if (document.getElementById('cfg-gate-env')) document.getElementById('cfg-gate-env').value = data.gate_env || 'demo';
         document.getElementById('cfg-llm-base-url').value = data.llm_base_url || '';
@@ -2847,6 +2912,7 @@
         const data = await res.json();
         if (!res.ok) return alert('更新凭证失败: ' + (data.detail || '未知错误'));
         alert('✅ 交易所与 Telegram 机器人凭证已动态更新生效！');
+        updateTradingModeUI(payload.okx_env || 'demo');
         loadCredentials();
       } catch (e) {
         alert('网络请求失败: ' + e);
@@ -2905,6 +2971,10 @@
     }
 
     async function triggerSimulateCycle(sym = 'BTC') {
+      if (window.currentTradingEnv === 'live') {
+        alert('⚠️ 当前系统处于【实盘交易模式 (LIVE)】，模拟盘研判实测已安全锁定！实盘巡检请使用顶部【执行巡检】。');
+        return;
+      }
       alert(`🚀 正在发起【${sym}】模拟盘投委会全流程研判与模拟撮合周期，请稍候...`);
       try {
         const res = await fetch(`${API_BASE}/trading/simulate-cycle`, {

@@ -38,7 +38,11 @@ async def health_check():
         "status": "healthy",
         "app_name": settings.APP_NAME,
         "version": "2.0.0-PRO",
-        "timestamp_utc": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+        "timestamp_utc": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+        "okx_env": settings.OKX_ENV,
+        "binance_env": settings.BINANCE_ENV,
+        "gate_env": settings.GATE_ENV,
+        "is_demo": (settings.OKX_ENV.lower() == "demo")
     }
 
 
@@ -165,7 +169,14 @@ async def update_credentials(req: UpdateCredentialsRequest):
         persisted["telegram_admin_chat_id"] = settings.TELEGRAM_ADMIN_CHAT_ID
 
     save_persisted_credentials(persisted)
-    return {"status": "success", "message": "系统与外部服务凭证已动态更新并安全持久化"}
+    return {
+        "status": "success",
+        "message": "系统与外部服务凭证已动态更新并安全持久化",
+        "okx_env": settings.OKX_ENV,
+        "binance_env": settings.BINANCE_ENV,
+        "gate_env": settings.GATE_ENV,
+        "is_demo": (settings.OKX_ENV.lower() == "demo")
+    }
 
 
 def mask_secret(s: str) -> str:
@@ -188,6 +199,7 @@ async def get_credentials():
         "binance_api_key_masked": mask_secret(bin_key),
         "gate_env": settings.GATE_ENV,
         "gate_api_key_masked": mask_secret(settings.GATE_API_KEY),
+        "is_demo": (settings.OKX_ENV.lower() == "demo"),
         "llm_base_url": settings.LLM_BASE_URL,
         "llm_model": settings.LLM_MODEL,
         "llm_key_masked": mask_secret(settings.LLM_API_KEY),

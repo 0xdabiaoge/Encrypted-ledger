@@ -77,10 +77,14 @@ async def get_all_positions(session_payload=Depends(get_optional_session)):
     except Exception as e:
         errors["paper"] = str(e)
 
+    from app.core.config import settings
     if is_admin:
         return {
             "positions": positions,
             "is_masked": False,
+            "okx_env": settings.OKX_ENV,
+            "binance_env": settings.BINANCE_ENV,
+            "is_demo": (settings.OKX_ENV.lower() == "demo"),
             "errors": errors
         }
 
@@ -105,6 +109,9 @@ async def get_all_positions(session_payload=Depends(get_optional_session)):
     return {
         "positions": masked_positions,
         "is_masked": True,
+        "okx_env": settings.OKX_ENV,
+        "binance_env": settings.BINANCE_ENV,
+        "is_demo": (settings.OKX_ENV.lower() == "demo"),
         "errors": errors
     }
 
@@ -115,6 +122,7 @@ async def get_aggregated_balance(session_payload=Depends(get_optional_session)):
     Retrieve equity and account margins.
     Masked for public visitors to protect institutional treasury confidentiality.
     """
+    from app.core.config import settings
     is_admin = bool(session_payload and session_payload.get("role") in ("superadmin", "admin"))
 
     bal_okx = None
@@ -143,6 +151,9 @@ async def get_aggregated_balance(session_payload=Depends(get_optional_session)):
             "margin_used_usd": round(total_margin, 2),
             "unrealized_pnl_usd": round(total_upl, 2),
             "is_masked": False,
+            "okx_env": settings.OKX_ENV,
+            "binance_env": settings.BINANCE_ENV,
+            "is_demo": (settings.OKX_ENV.lower() == "demo"),
             "okx": bal_okx.__dict__ if bal_okx else None,
             "binance": bal_bin.__dict__ if bal_bin else None,
             "errors": errors
@@ -153,6 +164,9 @@ async def get_aggregated_balance(session_payload=Depends(get_optional_session)):
         "total_equity_usd": 0.0,
         "display_scale": "★ 100,000+ USDT",
         "is_masked": True,
+        "okx_env": settings.OKX_ENV,
+        "binance_env": settings.BINANCE_ENV,
+        "is_demo": (settings.OKX_ENV.lower() == "demo"),
         "okx": {"total_equity_usd": 0.0, "status": "接入正常 (OKX V5)"},
         "binance": {"total_equity_usd": 0.0, "status": "接入正常 (币安合约)"},
         "errors": errors
@@ -188,6 +202,12 @@ async def open_paper_order(req: OpenPaperOrderRequest):
     from app.core.paper_positions import paper_positions_manager
     from app.ledger.double_entry import double_entry_engine
     from app.core.config import settings
+
+    if settings.OKX_ENV.lower() == "live":
+        raise HTTPException(
+            status_code=400,
+            detail="当前系统处于【实盘交易 (Live)】模式，已刚性禁用模拟盘手动开仓！如需体验模拟盘，请先在管理后台切换运行模式为【模拟盘 (Demo)】。"
+        )
 
     sym = req.symbol.upper()
     venue = req.venue.lower()
@@ -354,6 +374,13 @@ async def trigger_simulated_trade_cycle(req: Optional[SimulateCycleRequest] = No
     """
     from app.scheduler.tasks import orchestrator
     from app.council.council_desk import council_desk
+    from app.core.config import settings
+
+    if settings.OKX_ENV.lower() == "live":
+        raise HTTPException(
+            status_code=400,
+            detail="当前系统处于【实盘交易 (Live)】模式，已刚性禁用模拟研判实测！实盘巡检请使用顶部【执行巡检】按钮。"
+        )
 
     sym = (req.symbol or "BTC").upper() if req else "BTC"
     
