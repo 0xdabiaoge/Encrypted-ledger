@@ -75,16 +75,19 @@ class PhysicalInterceptorPipeline:
             # ------------------------------------------------------------------
             p1_trend = factor_snapshot.get("pillar_1_trend", {})
             adx = float(p1_trend.get("adx", 20.0))
-            if adx < 18.0:
+            from app.council.council_policy import council_policy_manager
+            active_preset = council_policy_manager.get_active_preset()
+            min_adx = 12.0 if active_preset == "hft_scalper" else 18.0
+            if adx < min_adx:
                 return InterceptResult(
                     passed=False,
                     blocked_by="02_ADX_VOLATILITY_FILTER",
-                    reason=f"1H ADX 趋势强度过低 ({adx:.1f} < 18.0)，处于无序震荡垃圾市，严禁开仓",
-                    details={"adx": adx}
+                    reason=f"1H ADX 趋势强度过低 ({adx:.1f} < {min_adx:.1f})，处于无序震荡垃圾市，严禁开仓",
+                    details={"adx": adx, "min_adx": min_adx}
                 )
 
             # ------------------------------------------------------------------
-            # Gate 3: Geometric 2.0R Risk-Reward (真实 2.0R 盈亏比硬门禁)
+            # Gate 3: Geometric Risk-Reward (真实盈亏比硬门禁)
             # ------------------------------------------------------------------
             if entry_price <= 0 or stop_loss_price <= 0 or take_profit_price <= 0:
                 return InterceptResult(
@@ -125,7 +128,7 @@ class PhysicalInterceptorPipeline:
                 )
 
             rr_ratio = reward_dist / risk_dist
-            min_rr = settings.RISK_MIN_RISK_REWARD
+            min_rr = 1.5 if active_preset == "hft_scalper" else settings.RISK_MIN_RISK_REWARD
             if rr_ratio < min_rr - 0.01:  # Allow 0.01 float tolerance
                 return InterceptResult(
                     passed=False,

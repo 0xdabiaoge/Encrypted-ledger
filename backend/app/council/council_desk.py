@@ -79,14 +79,14 @@ class InvestmentCouncilDesk:
             t_conf = min(92.0, 75.0 + adx * 0.5)
             t_entry = round(current_price * 0.999 if is_hft else current_price * 0.998, 4)
             t_sl = round(current_price - (0.8 * atr if is_hft else 1.8 * atr), 4)
-            t_tp = round(current_price + (1.6 * 0.8 * atr if is_hft else 2.5 * 1.8 * atr), 4)
+            t_tp = round(current_price + (2.0 * 0.8 * atr if is_hft else 2.5 * 1.8 * atr), 4)
             t_reason = f"4H/1H宏观多头通道顺向，ADX={adx:.1f}，提议顺势微波段做多，确保执行速度。" if is_hft else f"4H宏观顺势多头通道明确，1H回踩关键均线支撑，ADX={adx:.1f}趋势强劲，坚决顺大势低吸反磨损。"
         elif macro_4h == "BEARISH" and adx >= (18.0 if is_hft else 22.0):
             t_action = "SELL"
             t_conf = min(92.0, 75.0 + adx * 0.5)
             t_entry = round(current_price * 1.001 if is_hft else current_price * 1.002, 4)
             t_sl = round(current_price + (0.8 * atr if is_hft else 1.8 * atr), 4)
-            t_tp = round(current_price - (1.6 * 0.8 * atr if is_hft else 2.5 * 1.8 * atr), 4)
+            t_tp = round(current_price - (2.0 * 0.8 * atr if is_hft else 2.5 * 1.8 * atr), 4)
             t_reason = f"4H/1H微通道下行破位，ADX={adx:.1f}，提议高空阻击微波段。" if is_hft else f"4H宏观空头承压结构，大周期反弹受阻均线压制，ADX={adx:.1f}，提议高空阻击破位。"
         else:
             t_action = "HOLD"
@@ -122,14 +122,14 @@ class InvestmentCouncilDesk:
             m_conf = min(95.0, 80.0 + burst * 5.0)
             m_entry = round(current_price, 4)
             m_sl = round(current_price - (0.7 * atr if is_hft else 1.5 * atr), 4)
-            m_tp = round(current_price + (1.65 * 0.7 * atr if is_hft else 2.4 * 1.5 * atr), 4)
+            m_tp = round(current_price + (2.0 * 0.7 * atr if is_hft else 2.4 * 1.5 * atr), 4)
             m_reason = f"5m微积分速度v={vel:.4f}>0与加速度a={acc:.4f}>0瞬时脉冲爆发，量比{burst:.1f}倍，执行超短动能闪电突袭并快速平保！" if is_hft else f"微积分一阶速度v={vel:.4f}>0且二阶加速度a={acc:.4f}>0非线性爆发，量比放大{burst:.1f}倍，主张立即追击主升浪。"
         elif vel < 0 and acc < 0 and burst >= (1.15 if is_hft else 1.3):
             m_action = "SELL"
             m_conf = min(95.0, 80.0 + burst * 5.0)
             m_entry = round(current_price, 4)
             m_sl = round(current_price + (0.7 * atr if is_hft else 1.5 * atr), 4)
-            m_tp = round(current_price - (1.65 * 0.7 * atr if is_hft else 2.4 * 1.5 * atr), 4)
+            m_tp = round(current_price - (2.0 * 0.7 * atr if is_hft else 2.4 * 1.5 * atr), 4)
             m_reason = f"5m微积分下行加速度冲高，量比{burst:.1f}倍，执行超短动能闪电做空并快速平保！" if is_hft else f"微积分下行速度扩大，二阶加速度急剧恶化，带量击穿支撑，主张动能做空。"
         else:
             m_action = "HOLD"
@@ -179,14 +179,14 @@ class InvestmentCouncilDesk:
                 q_conf = min(92.0, 80.0 + imb * 35.0)
                 q_entry = round(current_price, 4)
                 q_sl = round(current_price - 0.8 * atr, 4)
-                q_tp = round(current_price + 1.65 * 0.8 * atr, 4)
+                q_tp = round(current_price + 2.0 * 0.8 * atr, 4)
                 q_reason = f"盘口买盘微观失衡显著(+{imb*100:.1f}%)，价差{spread_bps:.1f}bps极优，预期波幅远超双向手续费损耗，执行超短线做多，第一目标位快速平保。"
             elif imb < -0.10 and spread_bps <= 2.5:
                 q_action = "SELL"
                 q_conf = min(92.0, 80.0 + abs(imb) * 35.0)
                 q_entry = round(current_price, 4)
                 q_sl = round(current_price + 0.8 * atr, 4)
-                q_tp = round(current_price - 1.65 * 0.8 * atr, 4)
+                q_tp = round(current_price - 2.0 * 0.8 * atr, 4)
                 q_reason = f"盘口卖盘微观压单严重(-{abs(imb)*100:.1f}%)，价差{spread_bps:.1f}bps极优，预期波幅远超双向手续费损耗，执行超短线做空，第一目标位快速平保。"
             else:
                 q_action = "HOLD"
