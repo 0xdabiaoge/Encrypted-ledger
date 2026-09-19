@@ -330,10 +330,15 @@ class TradingOrchestrator:
                 except Exception as e:
                     logger.error(f"Scheduled news harvest error: {e}")
 
-            # Trade Inspection: every 15 min (900s)
-            if now - last_trade_time >= 900:
+            # Trade Inspection: 90s when active user patrol is running, otherwise 15 min (900s)
+            from app.core.user_patrol import user_patrol_manager
+            has_patrol = user_patrol_manager.has_any_active_patrol()
+            patrol_interval = 90 if has_patrol else 900
+
+            if now - last_trade_time >= patrol_interval:
                 try:
                     await self.execute_trade_cycle()
+                    user_patrol_manager.record_cycle_run()
                     last_trade_time = now
                 except Exception as e:
                     logger.error(f"Scheduled trade cycle error: {e}")

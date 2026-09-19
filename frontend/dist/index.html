@@ -154,9 +154,9 @@
 
       <div class="h-4 w-[1px] bg-dark-border"></div>
 
-      <button onclick="triggerTradeCycle()" id="btn-trigger" class="flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white font-medium text-xs px-3.5 py-1.5 rounded-md transition shadow-md">
-        <i data-lucide="zap" class="w-4 h-4"></i>
-        <span>执行巡检</span>
+      <button onclick="openPatrolControlModal()" id="btn-trigger" class="flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white font-medium text-xs px-3.5 py-1.5 rounded-md transition shadow-md" title="智能巡检托管与即时扫描">
+        <i data-lucide="zap" class="w-4 h-4" id="btn-trigger-icon"></i>
+        <span id="btn-trigger-text">执行巡检</span>
       </button>
       <button onclick="initDashboard()" class="p-1.5 rounded-md bg-dark-card border border-dark-border text-gray-300 hover:text-white" title="刷新大屏">
         <i data-lucide="refresh-cw" class="w-4 h-4"></i>
@@ -1644,6 +1644,132 @@
     </div>
   </div>
 
+  <!-- Modal: Auto-Patrol Control (智能量化巡检托管引擎) -->
+  <div id="modal-patrol-control" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-dark-card border border-dark-border rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-dark-border bg-dark-850">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-brand-500/20 text-brand-400 border border-brand-500/30 flex items-center justify-center font-bold">
+            <i data-lucide="zap" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 class="text-base font-bold text-white">AI 智能量化巡检持续托管引擎</h3>
+              <span id="patrol-modal-status-badge" class="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-gray-500/20 text-gray-400 border border-gray-500/30">
+                已就绪 / 待启动
+              </span>
+            </div>
+            <p class="text-xs text-gray-400">云端 24/7 独立守护 · 关网页/断网不中断 · 多智能体共识决策与自愈风控</p>
+          </div>
+        </div>
+        <button onclick="closePatrolControlModal()" class="text-gray-400 hover:text-white transition text-xl p-1">&times;</button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-5 text-xs">
+        <!-- Status Display Card -->
+        <div class="grid grid-cols-3 gap-3 bg-dark-850/80 border border-dark-border/80 rounded-xl p-3.5">
+          <div class="space-y-1">
+            <div class="text-gray-400 text-[11px]">托管状态</div>
+            <div id="patrol-stat-state" class="text-sm font-bold text-gray-300 flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-gray-500 inline-block"></span>
+              <span>未运行</span>
+            </div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-gray-400 text-[11px]">倒计时 / 有效期</div>
+            <div id="patrol-stat-countdown" class="text-sm font-bold font-mono text-brand-400">--</div>
+          </div>
+          <div class="space-y-1">
+            <div class="text-gray-400 text-[11px]">巡检频率 / 累计轮次</div>
+            <div class="text-sm font-bold text-gray-200">
+              <span class="text-emerald-400">90秒/轮</span>
+              <span class="text-gray-500 font-normal"> · </span>
+              <span id="patrol-stat-cycles" class="text-gray-300 font-mono">0</span> 轮
+            </div>
+          </div>
+        </div>
+
+        <!-- Duration Selector Section -->
+        <div class="space-y-2">
+          <label class="block text-gray-300 font-semibold text-xs flex items-center justify-between">
+            <span>选择托管运行时长 (独立针对当前账户生效)</span>
+            <span class="text-[11px] text-gray-400 font-normal">到期后自动平稳暂停</span>
+          </label>
+          <div class="grid grid-cols-4 gap-2.5" id="patrol-duration-options">
+            <!-- 24 Hours Card -->
+            <button type="button" onclick="selectPatrolDuration('24h')" id="patrol-opt-24h"
+              class="patrol-opt-card flex flex-col items-center justify-center p-3 rounded-xl border border-dark-border bg-dark-850 hover:border-brand-500/60 transition group text-left">
+              <div class="font-bold text-white text-sm group-hover:text-brand-400">24 小时</div>
+              <div class="text-[11px] text-gray-400 mt-0.5">短线试跑</div>
+            </button>
+
+            <!-- 48 Hours Card -->
+            <button type="button" onclick="selectPatrolDuration('48h')" id="patrol-opt-48h"
+              class="patrol-opt-card flex flex-col items-center justify-center p-3 rounded-xl border border-dark-border bg-dark-850 hover:border-brand-500/60 transition group text-left">
+              <div class="font-bold text-white text-sm group-hover:text-brand-400">48 小时</div>
+              <div class="text-[11px] text-gray-400 mt-0.5">周末/波段</div>
+            </button>
+
+            <!-- 72 Hours Card -->
+            <button type="button" onclick="selectPatrolDuration('72h')" id="patrol-opt-72h"
+              class="patrol-opt-card flex flex-col items-center justify-center p-3 rounded-xl border border-dark-border bg-dark-850 hover:border-brand-500/60 transition group text-left">
+              <div class="font-bold text-white text-sm group-hover:text-brand-400">72 小时</div>
+              <div class="text-[11px] text-gray-400 mt-0.5">3日趋势</div>
+            </button>
+
+            <!-- Permanent Card -->
+            <button type="button" onclick="selectPatrolDuration('permanent')" id="patrol-opt-permanent"
+              class="patrol-opt-card flex flex-col items-center justify-center p-3 rounded-xl border border-brand-500 bg-brand-500/10 text-left relative overflow-hidden transition group">
+              <span class="absolute top-0 right-0 bg-brand-500 text-[9px] text-white font-bold px-1.5 py-0.5 rounded-bl">推荐</span>
+              <div class="font-bold text-brand-400 text-sm">永久执行</div>
+              <div class="text-[11px] text-gray-300 mt-0.5">全天候无间断</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Commercial Security & Operational Tips -->
+        <div class="border border-dark-border/70 rounded-xl p-3.5 bg-dark-850/50 space-y-2 text-[11px] text-gray-400 leading-relaxed">
+          <div class="flex items-start space-x-2">
+            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+            <div><b class="text-gray-200">服务端 24/7 守护：</b>即使您关闭浏览器、电脑休眠或离线断网，云端量化调度器仍会按既定时长持续运行，绝不漏单。</div>
+          </div>
+          <div class="flex items-start space-x-2">
+            <i data-lucide="lock" class="w-4 h-4 text-blue-400 shrink-0 mt-0.5"></i>
+            <div><b class="text-gray-200">多租户独立沙盒：</b>您的巡检只监控与执行您绑定的交易所 API，与其他普通用户或管理员完全隔离，无全局交叉干扰。</div>
+          </div>
+          <div class="flex items-start space-x-2">
+            <i data-lucide="activity" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+            <div><b class="text-gray-200">全自动自愈风控：</b>每次巡检将严格依据五大微积分动力学、市场情绪体温计进行多智能体共识，达标才开仓，并自动维持硬止损止盈。</div>
+          </div>
+        </div>
+
+        <!-- Control Action Buttons -->
+        <div class="flex items-center justify-between pt-2 border-t border-dark-border">
+          <div>
+            <button type="button" onclick="triggerImmediateSingleScan()" id="btn-patrol-single-scan"
+              class="px-3.5 py-2 rounded-lg bg-dark-850 hover:bg-dark-border border border-dark-border text-gray-300 hover:text-white flex items-center space-x-1.5 transition" title="立刻执行一次完整的多智能体巡检">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>立即单次扫描</span>
+            </button>
+          </div>
+          <div class="flex items-center space-x-2.5">
+            <button type="button" onclick="stopUserPatrol()" id="btn-patrol-stop"
+              class="px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 font-semibold transition hidden">
+              停止托管
+            </button>
+            <button type="button" onclick="startUserPatrol()" id="btn-patrol-start"
+              class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-bold transition shadow-lg shadow-brand-600/30 flex items-center space-x-1.5">
+              <i data-lucide="play" class="w-4 h-4"></i>
+              <span id="btn-patrol-start-text">启动巡检托管</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Manual Simulated Order -->
   <div id="modal-manual-sim-order" class="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
     <div class="bg-dark-card border border-dark-border rounded-xl w-full max-w-md p-6 shadow-2xl space-y-4">
@@ -1787,7 +1913,8 @@
         fetchMacroNews(),
         fetchLedgerEntries(),
         fetchTradingMemory(),
-        checkCircuitBreaker()
+        checkCircuitBreaker(),
+        fetchPatrolStatus()
       ]);
     }
 
@@ -2486,26 +2613,244 @@
       } catch (e) {}
     }
 
-    // 11. Actions & Triggers
-    async function triggerTradeCycle() {
-      const btn = document.getElementById('btn-trigger');
+    // 11. Auto-Patrol Control & Actions
+    let currentSelectedPatrolDuration = 'permanent';
+    let patrolCountdownTimer = null;
+    window._userPatrolState = null;
+
+    function selectPatrolDuration(dur) {
+      currentSelectedPatrolDuration = dur;
+      const cards = document.querySelectorAll('.patrol-opt-card');
+      cards.forEach(c => {
+        c.classList.remove('border-brand-500', 'bg-brand-500/10');
+        c.classList.add('border-dark-border', 'bg-dark-850');
+      });
+      const selected = document.getElementById(`patrol-opt-${dur}`);
+      if (selected) {
+        selected.classList.remove('border-dark-border', 'bg-dark-850');
+        selected.classList.add('border-brand-500', 'bg-brand-500/10');
+      }
+    }
+
+    async function openPatrolControlModal() {
+      const token = localStorage.getItem('el_token');
+      if (!token) {
+        if (confirm('使用智能巡检持续托管与自愈风控功能需要先登录您的账户。是否前往登录？')) {
+          openAuthModal('login');
+        }
+        return;
+      }
+      document.getElementById('modal-patrol-control').classList.remove('hidden');
+      await fetchPatrolStatus();
+      lucide.createIcons();
+    }
+
+    function closePatrolControlModal() {
+      document.getElementById('modal-patrol-control').classList.add('hidden');
+    }
+
+    function formatPatrolTime(sec) {
+      if (sec === -1 || sec === null || sec === undefined) return '永久有效 (持续托管)';
+      if (sec <= 0) return '已到期 (已暂停)';
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (h > 0) {
+        return `${h}小时 ${m.toString().padStart(2, '0')}分 ${s.toString().padStart(2, '0')}秒`;
+      }
+      return `${m}分 ${s.toString().padStart(2, '0')}秒`;
+    }
+
+    function startPatrolLocalCountdown() {
+      if (patrolCountdownTimer) clearInterval(patrolCountdownTimer);
+      patrolCountdownTimer = setInterval(() => {
+        if (!window._userPatrolState || !window._userPatrolState.is_active) {
+          clearInterval(patrolCountdownTimer);
+          return;
+        }
+        if (window._userPatrolState.remaining_seconds > 0) {
+          window._userPatrolState.remaining_seconds--;
+          updatePatrolUI(window._userPatrolState);
+          if (window._userPatrolState.remaining_seconds <= 0) {
+            window._userPatrolState.is_active = false;
+            updatePatrolUI(window._userPatrolState);
+            fetchPatrolStatus();
+          }
+        }
+      }, 1000);
+    }
+
+    function updatePatrolUI(patrol) {
+      const stateEl = document.getElementById('patrol-stat-state');
+      const countdownEl = document.getElementById('patrol-stat-countdown');
+      const cyclesEl = document.getElementById('patrol-stat-cycles');
+      const badgeEl = document.getElementById('patrol-modal-status-badge');
+      const btnStop = document.getElementById('btn-patrol-stop');
+      const btnStartText = document.getElementById('btn-patrol-start-text');
+      const triggerBtn = document.getElementById('btn-trigger');
+      const triggerText = document.getElementById('btn-trigger-text');
+
+      if (patrol && patrol.is_active) {
+        if (stateEl) {
+          stateEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block mr-1"></span><span class="text-emerald-400">运行中 (云端托管)</span>';
+        }
+        if (badgeEl) {
+          badgeEl.className = 'px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center space-x-1';
+          badgeEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span><span>托管运行中</span>';
+        }
+        if (countdownEl) {
+          countdownEl.innerText = formatPatrolTime(patrol.remaining_seconds);
+          countdownEl.className = 'text-sm font-bold font-mono text-emerald-400';
+        }
+        if (btnStop) btnStop.classList.remove('hidden');
+        if (btnStartText) btnStartText.innerText = '更新托管时长';
+
+        // Top Header button
+        if (triggerBtn && triggerText) {
+          triggerBtn.className = 'flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs px-3.5 py-1.5 rounded-md transition shadow-md shadow-emerald-600/30';
+          if (patrol.remaining_seconds === -1) {
+            triggerText.innerHTML = '<span class="flex items-center space-x-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping inline-block mr-1"></span>巡检中 (永久)</span>';
+          } else {
+            const h = Math.floor(patrol.remaining_seconds / 3600);
+            const m = Math.floor((patrol.remaining_seconds % 3600) / 60);
+            triggerText.innerHTML = `<span class="flex items-center space-x-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-ping inline-block mr-1"></span>巡检中 (${h}h${m}m)</span>`;
+          }
+        }
+      } else {
+        if (stateEl) {
+          stateEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-500 inline-block mr-1"></span><span class="text-gray-400">未运行 (已暂停)</span>';
+        }
+        if (badgeEl) {
+          badgeEl.className = 'px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-gray-500/20 text-gray-400 border border-gray-500/30';
+          badgeEl.innerText = '已就绪 / 待启动';
+        }
+        if (countdownEl) {
+          countdownEl.innerText = '未启用';
+          countdownEl.className = 'text-sm font-bold font-mono text-gray-400';
+        }
+        if (btnStop) btnStop.classList.add('hidden');
+        if (btnStartText) btnStartText.innerText = '启动巡检托管';
+
+        // Top Header button
+        if (triggerBtn && triggerText) {
+          triggerBtn.className = 'flex items-center space-x-1.5 bg-brand-600 hover:bg-brand-500 text-white font-medium text-xs px-3.5 py-1.5 rounded-md transition shadow-md';
+          triggerText.innerText = '执行巡检';
+        }
+      }
+
+      if (cyclesEl && patrol) {
+        cyclesEl.innerText = patrol.total_cycles || 0;
+      }
+    }
+
+    async function fetchPatrolStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/trading/patrol/status`, {
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          const data = await res.json();
+          window._userPatrolState = data.patrol;
+          updatePatrolUI(data.patrol);
+          if (data.patrol.duration) {
+            selectPatrolDuration(data.patrol.duration);
+          }
+          if (data.patrol.is_active && data.patrol.remaining_seconds > 0) {
+            startPatrolLocalCountdown();
+          }
+        }
+      } catch (e) {
+        console.warn('Fetch patrol status error:', e);
+      }
+    }
+
+    async function startUserPatrol() {
+      const btn = document.getElementById('btn-patrol-start');
+      const originalHtml = btn.innerHTML;
       btn.disabled = true;
-      btn.innerText = '巡检计算中...';
+      btn.innerText = '正在启动...';
+      try {
+        const res = await fetch(`${API_BASE}/trading/patrol/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ duration: currentSelectedPatrolDuration })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          const durDesc = {
+            '24h': '24 小时',
+            '48h': '48 小时',
+            '72h': '72 小时',
+            'permanent': '永久全天候'
+          }[currentSelectedPatrolDuration] || currentSelectedPatrolDuration;
+          alert(`✅ 巡检持续托管已成功启动！\n\n• 托管时长: ${durDesc}\n• 巡检频率: 每 90 秒进行一次微积分动力学与多智能体共识\n• 服务端守护: 您可随时关闭网页或刷新，云端将持续在后台守护您的资产。`);
+          await fetchPatrolStatus();
+        } else {
+          alert('启动巡检失败: ' + (data.detail || '未知异常'));
+        }
+      } catch (e) {
+        alert('网络请求异常: ' + e);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        lucide.createIcons();
+      }
+    }
+
+    async function stopUserPatrol() {
+      if (!confirm('确认要停止量化巡检托管吗？\n\n停止后云端将不再为您进行每90秒的高频自动巡检与开仓机会扫描。')) return;
+      const btn = document.getElementById('btn-patrol-stop');
+      btn.disabled = true;
+      btn.innerText = '停止中...';
+      try {
+        const res = await fetch(`${API_BASE}/trading/patrol/stop`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert('⏹️ 量化巡检托管已暂停。');
+          await fetchPatrolStatus();
+        } else {
+          alert('停止失败: ' + (data.detail || '未知异常'));
+        }
+      } catch (e) {
+        alert('停止请求异常: ' + e);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '停止托管';
+      }
+    }
+
+    async function triggerImmediateSingleScan() {
+      const btn = document.getElementById('btn-patrol-single-scan');
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i><span>计算中...</span>';
+      lucide.createIcons();
       try {
         const res = await fetch(`${API_BASE}/trading/cycle/trigger`, {
           method: 'POST',
           headers: getAuthHeaders()
         });
         const data = await res.json();
-        alert('⚡ 量化巡检与多智能体共识决策执行完毕！');
-        await initDashboard();
+        if (res.ok) {
+          alert('⚡ 立即单次量化巡检已执行完毕！\n因果动力学与多智能体共识决策已更新。');
+          await Promise.all([initDashboard(), fetchPatrolStatus()]);
+        } else {
+          alert('单次扫描失败: ' + (data.detail || '未知异常'));
+        }
       } catch (e) {
-        alert('执行异常: ' + e);
+        alert('扫描请求异常: ' + e);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="zap" class="w-4 h-4"></i><span>执行巡检</span>';
+        btn.innerHTML = originalHtml;
         lucide.createIcons();
       }
+    }
+
+    async function triggerTradeCycle() {
+      openPatrolControlModal();
     }
 
     async function triggerSelfEvolution() {
@@ -4311,6 +4656,7 @@ def check_risk(package: dict, decision: dict, context: dict) -> tuple[bool, str]
         fetchCouncilDebates();
         fetchMacroNews();
         checkCircuitBreaker();
+        fetchPatrolStatus();
         if (g_current_view_mode === 'kline') {
           loadKlineData(false);
         }

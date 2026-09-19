@@ -9,12 +9,17 @@ from __future__ import annotations
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from app.api.auth import get_optional_session, verify_admin_session
+from app.api.auth import get_optional_session, verify_admin_session, verify_any_session
 from app.exchanges.router import order_router
 from app.scheduler.tasks import orchestrator
 from app.core.sharing import position_share_manager
+from app.core.user_patrol import user_patrol_manager
 
 router = APIRouter(prefix="/trading", tags=["Trading Operations"])
+
+
+class StartPatrolRequest(BaseModel):
+    duration: str = "24h"  # "24h" | "48h" | "72h" | "permanent"
 
 
 class ClosePositionRequest(BaseModel):
@@ -173,14 +178,45 @@ async def get_aggregated_balance(session_payload=Depends(get_optional_session)):
     }
 
 
-@router.post("/cycle/trigger", dependencies=[Depends(verify_admin_session)])
-async def trigger_cycle():
-    """Manually trigger an immediate trade scan and execution cycle (Superadmin only)."""
+@router.post("/cycle/trigger")
+async def trigger_cycle(session_payload=Depends(verify_any_session)):
+    """Manually trigger an immediate trade scan and execution cycle (Authenticated users)."""
     try:
         res = await orchestrator.execute_trade_cycle()
+        user_patrol_manager.record_cycle_run()
         return {"status": "success", "result": res}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/patrol/start")
+async def start_user_patrol(
+    req: StartPatrolRequest,
+    session_payload=Depends(verify_any_session)
+):
+    """Start or update auto-patrol schedule for the current authenticated user."""
+    username = session_payload.get("username", "trader")
+    role = session_payload.get("role", "user")
+    patrol = user_patrol_manager.start_patrol(username=username, duration=req.duration, role=role)
+    return {"status": "success", "patrol": patrol}
+
+
+@router.post("/patrol/stop")
+async def stop_user_patrol(session_payload=Depends(verify_any_session)):
+    """Stop auto-patrol schedule for the current authenticated user."""
+    username = session_payload.get("username", "trader")
+    patrol = user_patrol_manager.stop_patrol(username=username)
+    return {"status": "success", "patrol": patrol}
+
+
+@router.get("/patrol/status")
+async def get_user_patrol_status(session_payload=Depends(get_optional_session)):
+    """Retrieve auto-patrol schedule and remaining countdown for the current user."""
+    if not session_payload:
+        return {"status": "success", "patrol": {"is_active": False, "status": "unauthenticated", "remaining_seconds": 0}}
+    username = session_payload.get("username", "trader")
+    patrol = user_patrol_manager.get_patrol_status(username=username)
+    return {"status": "success", "patrol": patrol}
 
 
 class OpenPaperOrderRequest(BaseModel):
