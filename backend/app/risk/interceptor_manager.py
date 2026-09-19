@@ -31,6 +31,9 @@ Author: Quantum Risk Sentinel
 Description: 严禁在大级别多头通道中逆势做空，或在空头通道中逆势做多。
 """
 def check_risk(package: dict, decision: dict, context: dict) -> tuple[bool, str]:
+    if package.get("active_preset") == "hft_scalper":
+        return True, "高频微波段策略顺应盘口微观动能，放行超短线回调阻击"
+
     macro = str(package.get("macro_4h", "") or "").upper()
     action = str(decision.get("action", "") or "").upper()
 

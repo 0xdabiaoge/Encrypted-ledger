@@ -140,22 +140,30 @@ class PhysicalInterceptorPipeline:
             # ------------------------------------------------------------------
             # Gate 4: 4H Macro Trend Alignment (4H 大周期顺势铁律)
             # ------------------------------------------------------------------
+            if active_preset == "hft_scalper":
+                # In HFT mode, allow micro-scalping pullbacks unless extreme parabolic bubble (> 15% deviation)
+                max_dev = 1.15
+                min_dev = 0.85
+            else:
+                max_dev = 1.035
+                min_dev = 0.965
+
             if candles_4h and len(candles_4h) >= 20:
                 closes_4h = [c["close"] for c in candles_4h]
                 ema20_4h = sum(closes_4h[-20:]) / 20.0
                 curr_px = closes_4h[-1]
-                if is_long and curr_px < ema20_4h * 0.965:
+                if is_long and curr_px < ema20_4h * min_dev:
                     return InterceptResult(
                         passed=False,
                         blocked_by="04_MACRO_TREND_FILTER",
-                        reason="4H 宏观处于严重空头承压通道，严禁逆势摸顶或接飞刀做多",
+                        reason=f"4H 宏观处于严重空头承压通道 (当前价 {curr_px:.4f} < 均线 {ema20_4h:.4f} * {min_dev})，严禁逆势做多",
                         details={"curr_px": curr_px, "ema20_4h": ema20_4h}
                     )
-                elif not is_long and curr_px > ema20_4h * 1.035:
+                elif not is_long and curr_px > ema20_4h * max_dev:
                     return InterceptResult(
                         passed=False,
                         blocked_by="04_MACRO_TREND_FILTER",
-                        reason="4H 宏观处于强大多头扩张通道，严禁逆势摸顶开空",
+                        reason=f"4H 宏观处于极端多头泡沫扩张 (当前价 {curr_px:.4f} > 均线 {ema20_4h:.4f} * {max_dev})，严禁盲目开空",
                         details={"curr_px": curr_px, "ema20_4h": ema20_4h}
                     )
 
@@ -200,7 +208,8 @@ class PhysicalInterceptorPipeline:
                     "instId": symbol,
                     "macro_4h": macro_state,
                     "adx_1h": float(factor_snapshot.get("pillar_1_trend", {}).get("adx", 20.0)),
-                    "factor_snapshot": factor_snapshot
+                    "factor_snapshot": factor_snapshot,
+                    "active_preset": active_preset
                 }
                 dec = {
                     "action": "BUY_LONG" if is_long else "SELL_SHORT",
